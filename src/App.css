@@ -1,0 +1,65 @@
+/* 🏆 Le compteur/badge global de l'application */
+.counter {
+  font-family: var(--mono);
+  font-size: 16px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 2px solid transparent;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  margin-bottom: 24px;
+  display: inline-flex;
+
+  &:hover {
+    border-color: var(--accent-border);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/* 🎯 Le conteneur central de tes vues (Leaderboard, Grille, etc.) */
+#center {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  place-content: center;
+  place-items: center;
+  flex-grow: 1;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 20px; /* Base padding propre */
+
+  @media (max-width: 1024px) {
+    /* On réduit légèrement le padding du bas car la Safe Area 
+       configurée dans index.css prend déjà le relais sur les mobiles récents.
+    */
+    padding: 24px 16px 12px;
+    gap: 16px;
+  }
+}
+
+/* 🛠️ Idéal si tu as besoin de lignes de séparation décoratives */
+.ticks {
+  position: relative;
+  width: 100%;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: -4.5px;
+    border: 5px solid transparent;
+  }
+
+  &::before {
+    left: 0;
+    border-left-color: var(--border);
+  }
+  &::after {
+    right: 0;
+    border-right-color: var(--border);
+  }
+}

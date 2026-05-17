@@ -1,0 +1,8 @@
+{
+  "short_name": "Eurovision",
+  "name": "Eurovision Pronos",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f0c20",
+  "theme_color": "#0f0c20"
+}
