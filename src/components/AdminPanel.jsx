@@ -172,30 +172,61 @@ const AdminPanel = ({ onBack }) => {
         const userId = userDoc.id;
         let userFinalScore = 0;
 
+        // ── TOP 5 GÉNÉRAL ──────────────────────────────────────────────
+        // +5 vainqueur exact, +2 si dans le reste du Top 5
+        // BUG FIX: use if/else if so the winner slot doesn't also get +2
         if (data.top5 && Array.isArray(data.top5)) {
-          if (data.top5[0] === officialIds[0]) userFinalScore += 5;
           data.top5.forEach((id, idx) => {
-            if (idx > 0 && officialTop5.includes(id)) userFinalScore += 2;
+            if (!id) return;
+            if (idx === 0) {
+              // 1ère place
+              if (id === officialIds[0]) {
+                userFinalScore += 5; // vainqueur exact
+              } else if (officialTop5.includes(id)) {
+                userFinalScore += 2; // dans le top5 mais pas 1er
+              }
+            } else {
+              // Places 2-5
+              if (officialTop5.includes(id)) {
+                userFinalScore += 2;
+              }
+            }
           });
         }
 
+        // ── TOP 3 JURY ─────────────────────────────────────────────────
+        // +3 rang exact du 1er, +1 si présent dans le top3
+        // BUG FIX: use if/else if to avoid giving both +3 and +1 to the same pick
         if (data.top3Jury && Array.isArray(data.top3Jury)) {
-          if (data.top3Jury[0] === officialJuryIds[0]) userFinalScore += 3;
-          data.top3Jury.forEach((id) => {
-            if (officialJuryIds.slice(0, 3).includes(id)) userFinalScore += 1;
+          data.top3Jury.forEach((id, idx) => {
+            if (!id) return;
+            if (idx === 0 && id === officialJuryIds[0]) {
+              userFinalScore += 3; // 1er exact
+            } else if (officialJuryIds.slice(0, 3).includes(id)) {
+              userFinalScore += 1; // présent dans le top3
+            }
           });
         }
 
+        // ── TOP 3 PUBLIC ───────────────────────────────────────────────
+        // +3 rang exact du 1er, +1 si présent dans le top3
+        // BUG FIX: use if/else if to avoid giving both +3 and +1 to the same pick
         if (data.top3Public && Array.isArray(data.top3Public)) {
-          if (data.top3Public[0] === officialPublicIds[0]) userFinalScore += 3;
-          data.top3Public.forEach((id) => {
-            if (officialPublicIds.slice(0, 3).includes(id)) userFinalScore += 1;
+          data.top3Public.forEach((id, idx) => {
+            if (!id) return;
+            if (idx === 0 && id === officialPublicIds[0]) {
+              userFinalScore += 3; // 1er exact
+            } else if (officialPublicIds.slice(0, 3).includes(id)) {
+              userFinalScore += 1; // présent dans le top3
+            }
           });
         }
 
+        // ── STATISTIQUES ───────────────────────────────────────────────
         if (data.mostTwelvePoints && data.mostTwelvePoints === mostTwelvePoints) userFinalScore += 5;
         if (data.lastPlace && data.lastPlace === officialLastPlaceId) userFinalScore += 7;
 
+        // ── PARI ZÉRO POINT ────────────────────────────────────────────
         if (data.zeroPoints && Array.isArray(data.zeroPoints)) {
           data.zeroPoints.forEach(countryId => {
             const actualData = activeScores.find(c => c.id === countryId);
@@ -206,25 +237,20 @@ const AdminPanel = ({ onBack }) => {
           });
         }
 
+        // ── POINTS PUBLIC DU VAINQUEUR ─────────────────────────────────
         const absoluteWinner = activeScores.find(c => c.id === officialIds[0]);
         if (absoluteWinner && data.winnerPublicPoints !== undefined) {
           const delta = Math.abs(data.winnerPublicPoints - absoluteWinner.public);
-          
-          if (delta === 0) {
-            userFinalScore += 100;
-          } else if (delta <= 20) {
-            userFinalScore += 50;
-          } else if (delta <= 50) {
-            userFinalScore += 20;
-          } else if (delta <= 75) {
-            userFinalScore += 10;
-          } else if (delta <= 150) {
-            userFinalScore += 5;
-          } else if (delta <= 200) {
-            userFinalScore += 1;
-          }
+          if (delta === 0) userFinalScore += 100;
+          else if (delta <= 20) userFinalScore += 50;
+          else if (delta <= 50) userFinalScore += 20;
+          else if (delta <= 75) userFinalScore += 10;
+          else if (delta <= 150) userFinalScore += 5;
+          else if (delta <= 200) userFinalScore += 1;
         }
 
+        // ── GRILLE PERSO ───────────────────────────────────────────────
+        // +2 par rang exact, -2 par favori officiel (top5) relégué dans le bottom5 du joueur
         if (data.myPersonalRank && Array.isArray(data.myPersonalRank) && data.myPersonalRank.length === officialIds.length) {
           data.myPersonalRank.forEach((countryId, index) => {
             if (countryId === officialIds[index]) userFinalScore += 2;
@@ -236,7 +262,6 @@ const AdminPanel = ({ onBack }) => {
           });
         }
 
-        // 🔥 MODIFICATION ICI : On injecte l'instantané complet des pronostics de l'utilisateur
         await setDoc(doc(db, 'leaderboard', userId), {
           displayName: data.userName || data.userDisplayName || "Anonyme",
           score: userFinalScore,
@@ -428,7 +453,7 @@ const styles = {
   header: { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px', padding: '0 10px' },
   backBtn: { display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: "'Outfit', sans-serif" },
   title: { fontFamily: "'Fredoka', sans-serif", margin: 0, fontSize: '1.3rem', color: '#ff007f' },
-  lockCard: { display: 'flex', alignItems: 'center', justifyEncoding: 'center', justifyContent: 'space-between', padding: '16px', borderRadius: '12px', border: '1px solid', marginBottom: '20px', boxSizing: 'border-box' },
+  lockCard: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderRadius: '12px', border: '1px solid', marginBottom: '20px', boxSizing: 'border-box' },
   lockCardTitle: { fontSize: '0.75rem', textTransform: 'uppercase', color: '#cbd5e0', letterSpacing: '0.04em' },
   lockCardStatus: { fontSize: '0.9rem', fontWeight: 600 },
   lockBtn: { display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', fontFamily: "'Outfit', sans-serif", fontWeight: 600, fontSize: '0.85rem' },
@@ -451,8 +476,8 @@ const styles = {
   bonusSelectorTitle: { margin: 0, fontSize: '0.95rem', fontWeight: 500, color: '#fff' },
   bonusSelect: { width: '100%', padding: '10px', background: '#15102a', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '6px', color: '#fff', fontFamily: "'Outfit', sans-serif", fontSize: '1rem', outline: 'none', marginTop: '4px' },
   triggerZone: { marginTop: '24px', padding: '0 4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '10px' },
-  calcBtn: { width: '100%', display: 'flex', alignItems: 'center', justifyEncoding: 'center', justifyContent: 'center', padding: '14px', background: '#ff007f', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: 600, fontFamily: "'Outfit', sans-serif", cursor: 'pointer', boxShadow: '0 0 15px rgba(255,0,127,0.3)', transition: 'background 0.2s' },
-  alertBox: { display: 'flex', alignItems: 'center', justifyEncoding: 'center', justifyContent: 'center', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', padding: '10px 14px', borderRadius: '8px', width: '100%', boxSizing: 'border-box' },
+  calcBtn: { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px', background: '#ff007f', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: 600, fontFamily: "'Outfit', sans-serif", cursor: 'pointer', boxShadow: '0 0 15px rgba(255,0,127,0.3)', transition: 'background 0.2s' },
+  alertBox: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', padding: '10px 14px', borderRadius: '8px', width: '100%', boxSizing: 'border-box' },
   alertText: { fontSize: '0.85rem', fontWeight: 500, color: '#fff', textAlign: 'center' }
 };
 

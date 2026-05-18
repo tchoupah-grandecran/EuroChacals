@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase/firebaseConfig';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, getDoc, doc } from 'firebase/firestore';
 import ScoreModal from './ScoreModal';
 
 // 📊 Import des icônes Lucide
@@ -10,15 +10,31 @@ const Leaderboard = () => {
   const [rankings, setRankings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [liveResults, setLiveResults] = useState(null);
+
+  // 🏆 Fetch the official results once so ScoreModal can display real calculations
+  useEffect(() => {
+    const fetchOfficialResults = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'results', 'officialRawScores'));
+        if (snap.exists()) {
+          setLiveResults(snap.data());
+        }
+      } catch (error) {
+        console.error("Erreur chargement résultats officiels:", error);
+      }
+    };
+    fetchOfficialResults();
+  }, []);
 
   useEffect(() => {
     // Écoute en temps réel de la collection leaderboard triée par score décroissant
     const q = query(collection(db, 'leaderboard'), orderBy('score', 'desc'));
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const playersList = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+      const playersList = querySnapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
       }));
       
       setRankings(playersList);
@@ -55,7 +71,6 @@ const Leaderboard = () => {
 
   return (
     <div style={styles.container}>
-      {/* 🎯 Titre mis à jour avec le BarChart3 aligné */}
       <h2 style={styles.title}>
         <BarChart3 size={22} color="#ff007f" style={{ marginRight: '10px' }} />
         Classement des chacaux
@@ -91,11 +106,12 @@ const Leaderboard = () => {
         )}
       </div>
 
-      {/* La modale s'ouvre avec les billes de scores du joueur sélectionné */}
+      {/* Pass liveResults so ScoreModal can display the real breakdown */}
       <ScoreModal 
         isOpen={Boolean(selectedPlayer)} 
         onClose={() => setSelectedPlayer(null)} 
         player={selectedPlayer}
+        liveResults={liveResults}
       />
     </div>
   );
