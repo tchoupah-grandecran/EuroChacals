@@ -3,7 +3,7 @@ import { db } from '../firebase/firebaseConfig';
 import { collection, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
 
 // Import des icônes Lucide (avec l'ajout de Lock)
-import { Trophy, Scale, Smartphone, Zap, Skull, Binary, Lock, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Trophy, Scale, Smartphone, Zap, Skull, Binary, Lock, AlertTriangle, CheckCircle, Send } from 'lucide-react';
 
 const PredictionForm = ({ user, onOpenLeaderboard }) => {
   const [countries, setCountries] = useState([]);
@@ -271,8 +271,11 @@ const PredictionForm = ({ user, onOpenLeaderboard }) => {
               </div>
             ) : (
               <button type="submit" disabled={saving} style={saving ? styles.btnDisabled : styles.btn}>
-                {saving ? 'Enregistrement...' : 'Valider mes pronostics'}
-              </button>
+  {saving 
+    ? 'Enregistrement...' 
+    : <><Send size={16} style={{ marginRight: '8px' }} />Valider mes pronostics</>
+  }
+</button>
             )}
 
             {/* 2. Bouton Leaderboard à droite */}

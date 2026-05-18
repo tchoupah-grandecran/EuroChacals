@@ -5,7 +5,7 @@ import ScoreModal from './ScoreModal';
 import { BINGO_ITEMS } from '../data/bingoItems';
 
 // 📊 Import des icônes Lucide
-import { BarChart3, Trophy, Medal, User, Zap, RefreshCw } from 'lucide-react';
+import { BarChart3, Trophy, Medal, User, Zap, RefreshCw, Sparkles, Grid3x3, Clock, Flame } from 'lucide-react';
 
 const Leaderboard = () => {
   // Navigation interne du Leaderboard
@@ -52,6 +52,33 @@ const Leaderboard = () => {
     });
     return () => unsubscribe();
   }, []);
+
+  // ─── ACTIONS ─────────────────────────────────────────────────────────
+  // FIX: Fonction déclenchée au clic pour aller chercher les prédictions manquantes
+  const handlePlayerClick = async (player) => {
+    try {
+      // On interroge le document de l'utilisateur dans la collection racine 'predictions'
+      const predSnap = await getDoc(doc(db, 'predictions', player.id));
+      
+      if (predSnap.exists()) {
+        // Si le doc existe, on injecte ses données directement dans l'objet player pour la modale
+        setSelectedPlayer({
+          ...player,
+          predictions: predSnap.data()
+        });
+      } else {
+        // Si aucune prédiction n'est trouvée, on passe l'objet de base pour éviter de bloquer l'UI
+        setSelectedPlayer({
+          ...player,
+          predictions: {}
+        });
+      }
+    } catch (error) {
+      console.error("Erreur lors de la récupération des prédictions :", error);
+      // Fallback de secours en cas de problème réseau ou permission
+      setSelectedPlayer({ ...player, predictions: {} });
+    }
+  };
 
   // ─── EFFECTS BINGO ───────────────────────────────────────────────────
   useEffect(() => {
@@ -135,13 +162,15 @@ const Leaderboard = () => {
           onClick={() => setActiveSubTab('pronos')} 
           style={activeSubTab === 'pronos' ? styles.subTabActive : styles.subTab}
         >
-          🔮 Pronostics
+          <Sparkles size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+          Pronostics
         </button>
         <button 
           onClick={() => setActiveSubTab('bingo')} 
           style={activeSubTab === 'bingo' ? styles.subTabActive : styles.subTab}
         >
-          🎲 Bingo
+          <Grid3x3 size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+          Bingo
         </button>
       </div>
 
@@ -168,7 +197,7 @@ const Leaderboard = () => {
                   return (
                     <div 
                       key={player.id} 
-                      onClick={() => setSelectedPlayer(player)}
+                      onClick={() => handlePlayerClick(player)} // FIX: Appel de la méthode de fetch au clic
                       style={{ ...(isFirst ? styles.rowWinner : styles.row), cursor: 'pointer' }}
                     >
                       <div style={styles.playerInfo}>
@@ -207,7 +236,7 @@ const Leaderboard = () => {
               <p style={styles.loadingText}>Vérification des grilles...</p>
             ) : bingoWinners.length === 0 ? (
               <div style={styles.emptyState}>
-                <span style={{ fontSize: '1.2rem' }}>⏳</span>
+                <Clock size={20} color="#a0aec0" />
                 <p style={styles.emptyText}>Personne n'a encore complété sa grille...</p>
               </div>
             ) : (
@@ -241,7 +270,7 @@ const Leaderboard = () => {
               <p style={styles.loadingText}>Calcul des occurrences...</p>
             ) : bingoOccurrenceRanking.length === 0 ? (
               <div style={styles.emptyState}>
-                <span style={{ fontSize: '1.2rem' }}>🎲</span>
+                <Grid3x3 size={20} color="#a0aec0" />
                 <p style={styles.emptyText}>Aucune grille verrouillée pour l'instant.</p>
               </div>
             ) : (
@@ -271,7 +300,7 @@ const Leaderboard = () => {
           {topBingoItems.length > 0 && (
             <div style={styles.section}>
               <div style={styles.sectionHeader}>
-                <span style={{ fontSize: '0.9rem' }}>🔥</span>
+                <Flame size={16} color="#fc8181" />
                 <h3 style={styles.sectionTitle}>Top événements de la soirée</h3>
               </div>
               <div style={styles.topItemsList}>
@@ -301,20 +330,15 @@ const Leaderboard = () => {
 
 const styles = {
   container: { fontFamily: "'Outfit', sans-serif" },
-  
-  // Onglets internes de navigation
   subTabContainer: { display: 'flex', background: 'rgba(0, 0, 0, 0.2)', padding: '4px', borderRadius: '10px', marginBottom: '20px', border: '1px solid rgba(255, 255, 255, 0.04)' },
   subTab: { flex: 1, padding: '8px 0', background: 'transparent', border: 'none', color: '#a0aec0', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, fontFamily: "'Outfit', sans-serif", transition: '0.2s' },
   subTabActive: { flex: 1, padding: '8px 0', background: 'rgba(255, 255, 255, 0.08)', border: 'none', color: '#fff', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, fontFamily: "'Outfit', sans-serif", boxShadow: '0 2px 8px rgba(0,0,0,0.2)' },
-  
-  // Styles Pronos
   headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   title: { margin: '0', color: '#ff007f', fontFamily: "'Fredoka', sans-serif", fontSize: '1.25rem', display: 'flex', alignItems: 'center', fontWeight: 500 },
   subtitle: { color: '#a0aec0', margin: '4px 0 16px 0', fontSize: '0.8rem' },
   loadingText: { textAlign: 'center', color: '#a0aec0', fontSize: '0.85rem', padding: '15px 0' },
   emptyText: { textAlign: 'center', color: '#a0aec0', fontSize: '0.85rem', padding: '15px 0' },
-  
-  list: { display: 'flex', flexDirection: 'column', gap: '8px' },
+  list: { display: 'flex', flexDirection: 'column', gap: '6px' },
   row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'rgba(0, 0, 0, 0.2)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.04)', transition: '0.15s' },
   rowWinner: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'linear-gradient(90deg, rgba(255, 0, 127, 0.1) 0%, rgba(0, 0, 0, 0.25) 100%)', borderRadius: '10px', border: '1px solid rgba(255, 0, 127, 0.3)', boxShadow: '0 4px 15px rgba(255, 0, 127, 0.05)' },
   playerInfo: { display: 'flex', alignItems: 'center', gap: '10px' },
@@ -322,15 +346,12 @@ const styles = {
   iconGlow: { filter: 'drop-shadow(0 0 4px rgba(255, 215, 0, 0.4))' },
   name: { fontWeight: 500, fontSize: '0.95rem', color: '#fff' },
   scoreBadge: { background: '#ff007f', color: '#fff', padding: '4px 10px', borderRadius: '20px', fontWeight: 700, fontSize: '0.85rem' },
-
-  // Styles Bingo
   section: { background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '12px', padding: '14px' },
   sectionHeader: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' },
   sectionTitle: { margin: 0, fontFamily: "'Fredoka', sans-serif", fontSize: '0.95rem', fontWeight: 400, color: '#fff', flex: 1 },
   sectionDesc: { margin: '-4px 0 10px 0', fontSize: '0.75rem', color: '#718096', lineHeight: '1.4' },
   refreshBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#718096', width: '24px', height: '24px', borderRadius: '6px', cursor: 'pointer' },
   emptyState: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '15px', textAlign: 'center' },
-  
   rankList: { display: 'flex', flexDirection: 'column', gap: '6px' },
   rankRow: { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', borderRadius: '8px', border: '1px solid' },
   rankPos: { fontFamily: "'Fredoka', sans-serif", fontSize: '0.9rem', minWidth: '24px' },
@@ -341,7 +362,6 @@ const styles = {
   scoreBox: { display: 'flex', alignItems: 'baseline', gap: '2px' },
   scoreValue: { fontSize: '1.1rem', fontWeight: 700, color: '#f6ad55', fontFamily: "'Fredoka', sans-serif" },
   scoreLabel: { fontSize: '0.7rem', color: '#718096' },
-
   topItemsList: { display: 'flex', flexDirection: 'column', gap: '6px' },
   topItemRow: { display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.02)' },
   topItemEmoji: { fontSize: '0.9rem' },

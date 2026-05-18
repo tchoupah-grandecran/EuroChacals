@@ -10,7 +10,7 @@ import PersonalRank from './components/PersonalRank';
 import RulesModal from './components/RulesModal';
 
 // Import des icônes Lucide
-import { Mic, User, LogOut, Sparkles, BarChart3, Settings, Trophy, X, HelpCircle } from 'lucide-react';
+import { Mic, User, LogOut, Sparkles, BarChart3, Settings, Trophy, X, HelpCircle, Grid3x3 } from 'lucide-react';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -139,7 +139,7 @@ function App() {
             style={activeTab === 'pronos' ? styles.tabActive : styles.tab}
           >
             <Sparkles size={15} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-            Pronos
+            Mes pronos
           </button>
           
           <button 
@@ -147,14 +147,14 @@ function App() {
             style={activeTab === 'classement' ? styles.tabActive : styles.tab}
           >
             <BarChart3 size={15} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-            Classement
+            Mon choix
           </button>
 
           <button 
             onClick={() => setActiveTab('bingo')} 
             style={activeTab === 'bingo' ? styles.tabActive : styles.tab}
           >
-            <Sparkles size={15} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+            <Grid3x3 size={15} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
             Bingo
           </button>
         </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Trophy, Scale, Smartphone, Zap, Skull, Binary, Award, Layers, HelpCircle } from 'lucide-react';
+import { X, Trophy, Scale, Smartphone, Zap, Skull, Binary, Award, Layers, HelpCircle, Sparkles, BarChart3, Dices } from 'lucide-react';
 
 const RulesModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
@@ -12,7 +12,7 @@ const RulesModal = ({ isOpen, onClose }) => {
         <div style={styles.header}>
           <div style={styles.headerTitle}>
             <HelpCircle size={22} color="#ff007f" />
-            <h2 style={styles.title}>Règles du Jeu & Calcul des Points</h2>
+            <h2 style={styles.title}>Règles et calculs</h2>
           </div>
           <button onClick={onClose} style={styles.closeBtn}>
             <X size={20} />
@@ -23,7 +23,10 @@ const RulesModal = ({ isOpen, onClose }) => {
         <div style={styles.body}>
           
           {/* SECTION PRONOSTICS */}
-          <h3 style={styles.sectionTitle}>🔮 Bareme des Pronostics</h3>
+          <h3 style={styles.sectionTitle}>
+  <Sparkles size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+  Bareme des pronostics
+</h3>
           
           <div style={styles.card}>
             <div style={styles.ruleRow}>
@@ -84,7 +87,10 @@ const RulesModal = ({ isOpen, onClose }) => {
           </div>
 
           {/* SECTION CLASSEMENT COMPLET VS OFFICIEL */}
-          <h3 style={styles.sectionTitle}>📊 Bonus Grille Complète (Perso vs Officiel)</h3>
+          <h3 style={styles.sectionTitle}>
+  <BarChart3 size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+  Bonus de comparaison
+</h3>
           <div style={styles.card}>
             <div style={styles.ruleRow}>
               <Award size={18} color="#a855f7" style={styles.icon} />
@@ -103,7 +109,10 @@ const RulesModal = ({ isOpen, onClose }) => {
           </div>
 
           {/* SECTION BINGO */}
-          <h3 style={styles.sectionTitle}>🎰 Règles du Bingo</h3>
+          <h3 style={styles.sectionTitle}>
+  <Dices size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+  Règles du bingo
+</h3>
           <div style={styles.card}>
             <p style={{ ...styles.ruleDetails, margin: 0, lineHeight: '1.5' }}>
               • Génère une grille de 9 cases aléatoires avant le début du show.<br />
@@ -127,8 +136,17 @@ const styles = {
   title: { margin: 0, fontSize: '1.2rem', fontFamily: "'Fredoka', sans-serif", color: '#fff', letterSpacing: '0.03em' },
   closeBtn: { background: 'none', border: 'none', color: '#a0aec0', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.2s' },
   body: { padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' },
-  sectionTitle: { margin: '4px 0 8px 0', fontFamily: "'Fredoka', sans-serif", fontSize: '1rem', color: '#ff007f', letterSpacing: '0.02em', fontWeight: 500 },
-  card: { background: 'rgba(0, 0, 0, 0.2)', border: '1px solid rgba(255, 255, 255, 0.04)', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '14px' },
+  sectionTitle: { 
+  margin: '4px 0 8px 0', 
+  fontFamily: "'Fredoka', sans-serif", 
+  fontSize: '1rem', 
+  color: '#ff007f', 
+  letterSpacing: '0.02em', 
+  fontWeight: 500,
+  display: 'flex',
+  alignItems: 'center'
+},
+ card: { background: 'rgba(0, 0, 0, 0.2)', border: '1px solid rgba(255, 255, 255, 0.04)', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '14px' },
   ruleRow: { display: 'flex', alignItems: 'flex-start', gap: '12px' },
   icon: { marginTop: '2px', flexShrink: 0 },
   ruleName: { color: '#fff', fontSize: '0.9rem', marginRight: '6px' },

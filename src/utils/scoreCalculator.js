@@ -1,66 +1,118 @@
 /**
  * Calcule les points d'un joueur en fonction de ses prédictions et des résultats officiels
+ * Aligné à 100% sur la logique visuelle de la ScoreModal
  */
 export const calculateUserScore = (prediction, officialResults) => {
   if (!prediction || !officialResults) return 0;
 
+  // ── 1. EXTRACTION DES SCORES OFFICIELS (Miroir de la Modale) ──
+  const officialScores = officialResults.scores || [];
+  const activeScores = officialScores.filter(c => typeof c.total === 'number');
+  
+  // Si l'admin n'a encore entré aucun score, le score est de 0
+  if (activeScores.length === 0) return 0;
+
+  // Tri des classements officiels en temps réel
+  const sortedByTotal  = [...activeScores].sort((a, b) => b.total  - a.total);
+  const sortedByJury   = [...activeScores].sort((a, b) => b.jury   - a.jury);
+  const sortedByPublic = [...activeScores].sort((a, b) => b.public - a.public);
+
+  const officialIds       = sortedByTotal.map(c => c.id);
+  const officialTop5      = officialIds.slice(0, 5);
+  const officialLastId    = officialIds[officialIds.length - 1];
+  const officialJuryIds   = sortedByJury.map(c => c.id);
+  const officialPublicIds = sortedByPublic.map(c => c.id);
+  const officialMost12    = officialResults.mostTwelvePoints || '';
+  const officialWinner    = sortedByTotal[0];
+
   let points = 0;
 
-  // --- 1. TOP 5 GÉNÉRAL (Existant) ---
+  // ── 2. CALCUL DES CATÉGORIES ──
+
+  // --- Top 5 Général ---
   const predTop5 = prediction.top5 || [];
-  const offTop5 = officialResults.top5 || [];
-  predTop5.forEach((countryId, index) => {
+  predTop5.forEach((countryId, idx) => {
     if (!countryId) return;
-    if (offTop5[index] === countryId) points += 10; // Rang exact
-    else if (offTop5.includes(countryId)) points += 5; // Dans le Top 5
+    if (idx === 0 && countryId === officialIds[0]) {
+      points += 5; // Vainqueur exact !
+    } else if (officialTop5.includes(countryId)) {
+      points += 2; // Dans le Top 5
+    }
   });
 
-  // --- 2. CUILLÈRE DE BOIS / DERNIER (Existant) ---
-  if (prediction.lastPlace && officialResults.lastPlace && prediction.lastPlace === officialResults.lastPlace) {
-    points += 15;
-  }
-
-  // --- 3. BONUS POINTS PUBLIC DU GAGNANT (Existant) ---
-  if (officialResults.winnerPublicPoints > 0 && prediction.winnerPublicPoints > 0) {
-    const difference = Math.abs(prediction.winnerPublicPoints - officialResults.winnerPublicPoints);
-    if (difference === 0) points += 20;
-    else if (difference <= 20) points += 10;
-  }
-
-  // --- 4. TOP 3 JURY (Nouveau) ---
+  // --- Top 3 Jury ---
   const predTop3Jury = prediction.top3Jury || [];
-  const offTop3Jury = officialResults.top3Jury || [];
-  predTop3Jury.forEach((countryId, index) => {
+  predTop3Jury.forEach((countryId, idx) => {
     if (!countryId) return;
-    if (offTop3Jury[index] === countryId) points += 8; // Rang exact
-    else if (offTop3Jury.includes(countryId)) points += 4; // Dans le Top 3
+    if (idx === 0 && countryId === officialJuryIds[0]) {
+      points += 3; // 1er Jury exact !
+    } else if (officialJuryIds.slice(0, 3).includes(countryId)) {
+      points += 1; // Dans le Top 3 Jury
+    }
   });
 
-  // --- 5. TOP 3 PUBLIC (Nouveau) ---
+  // --- Top 3 Public ---
   const predTop3Public = prediction.top3Public || [];
-  const offTop3Public = officialResults.top3Public || [];
-  predTop3Public.forEach((countryId, index) => {
+  predTop3Public.forEach((countryId, idx) => {
     if (!countryId) return;
-    if (offTop3Public[index] === countryId) points += 8; // Rang exact
-    else if (offTop3Public.includes(countryId)) points += 4; // Dans le Top 3
+    if (idx === 0 && countryId === officialPublicIds[0]) {
+      points += 3; // 1er Télévote exact !
+    } else if (officialPublicIds.slice(0, 3).includes(countryId)) {
+      points += 1; // Dans le Top 3 Public
+    }
   });
 
-  // --- 6. LE ROI DES 12 POINTS JURY (Nouveau) ---
-  if (prediction.mostTwelvePoints && officialResults.mostTwelvePoints && prediction.mostTwelvePoints === officialResults.mostTwelvePoints) {
-    points += 10;
+  // --- Most 12 points ---
+  if (prediction.mostTwelvePoints && prediction.mostTwelvePoints === officialMost12) {
+    points += 5;
   }
 
-  // --- 7. MÉCANIQUE PARI RISQUÉ : LES ZÉRO POINTS (Nouveau) ---
-  const predZeroPoints = prediction.zeroPoints || [];
-  const offZeroPoints = officialResults.zeroPoints || []; // Liste des pays qui ont VRAIMENT eu un 0 (Jury ou Télévote)
+  // --- Dernier (Last place) ---
+  if (prediction.lastPlace && prediction.lastPlace === officialLastId) {
+    points += 7;
+  }
 
-  if (predZeroPoints.length > 0 && officialResults.hasZeroPointsResultsPublished) {
-    predZeroPoints.forEach((countryId) => {
-      if (!countryId) return;
-      if (offZeroPoints.includes(countryId)) {
-        points += 15; // Énorme boost si validé !
+  // --- Points public du vainqueur ---
+  if (officialWinner && prediction.winnerPublicPoints !== undefined && prediction.winnerPublicPoints !== null) {
+    const targetPublic = officialWinner.public;
+    const delta = Math.abs(Number(prediction.winnerPublicPoints) - targetPublic);
+    
+    if (delta === 0)       points += 100;
+    else if (delta <= 20)  points += 50;
+    else if (delta <= 50)  points += 20;
+    else if (delta <= 75)  points += 10;
+    else if (delta <= 150) points += 5;
+    else if (delta <= 200) points += 1;
+  }
+
+  // --- Pari Zéro Point ---
+  const predZeroPoints = prediction.zeroPoints || [];
+  predZeroPoints.forEach((countryId) => {
+    if (!countryId) return;
+    const actual = activeScores.find(c => c.id === countryId);
+    if (actual) {
+      if (actual.total === 0) {
+        points += 15;
       } else {
-        points -= 5; // Malus vicieux si le pays a gratté des points !
+        points -= 5;
+      }
+    }
+  });
+
+  // --- Bonus Grille Perso (myPersonalRank) ---
+  const myPersonalRank = prediction.myPersonalRank || [];
+  if (myPersonalRank.length > 0) {
+    const userBottom5 = myPersonalRank.slice(-5);
+
+    myPersonalRank.forEach((countryId, userIdx) => {
+      if (userIdx < officialIds.length && countryId === officialIds[userIdx]) {
+        points += 2; // Rang exact
+      }
+    });
+
+    officialTop5.forEach((favId) => {
+      if (userBottom5.includes(favId)) {
+        points -= 2; // Pénalité favori dans le bottom 5
       }
     });
   }

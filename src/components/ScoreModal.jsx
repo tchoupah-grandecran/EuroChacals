@@ -61,10 +61,7 @@ const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
   const predZeroPoints = predictions.zeroPoints    || [];
 
   // ── 2. Official results (from results/officialRawScores) ──────────────────
-  // liveResults = { scores: [...], mostTwelvePoints: 'XX' }
-  // scores entries: { id, name, flag, jury, public, total }
   const officialScores    = liveResults?.scores || [];
-  // Only consider countries that have been given scores (total is defined & >= 0)
   const activeScores      = officialScores.filter(c => typeof c.total === 'number');
   const resultsAvailable  = activeScores.length > 0;
 
@@ -79,9 +76,9 @@ const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
   const officialJuryIds   = sortedByJury.map(c => c.id);
   const officialPublicIds = sortedByPublic.map(c => c.id);
   const officialMost12    = liveResults?.mostTwelvePoints || '';
-  const officialWinner    = sortedByTotal[0]; // { id, jury, public, total, ... }
+  const officialWinner    = sortedByTotal[0];
 
-  // ── 3. Compute each category score (mirrors AdminPanel logic exactly) ─────
+  // ── 3. Compute each category score ────────────────────────────────────────
   let totalComputed = 0;
 
   // --- Top 5 Général ---
@@ -226,19 +223,24 @@ const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
   });
 
   // --- Bonus Grille Perso (myPersonalRank) ---
-  // +2 pts per exact rank match (user rank i === official rank i)
-  // -2 pts per official top-5 country found in user's personal bottom 5
-  // Only rows that earn or cost points are shown; zero-impact rows are hidden.
+  // +2 pts par rang exact (rang utilisateur === rang officiel)
+  // -2 pts par favori officiel du top 5 trouvé dans le bottom 5 de l'utilisateur
   const personalRankRows = [];
-  const myPersonalRank = predictions.myPersonalRank || [];
+  
+  // FIX : On récupère la clé de manière sûre
+  const myPersonalRank = predictions.myPersonalRank || player?.myPersonalRank || [];
 
-  if (resultsAvailable && myPersonalRank.length > 0 && myPersonalRank.length === officialIds.length) {
+  // FIX SYNCHRO : On retire la condition stricte de longueur identique (myPersonalRank.length === officialIds.length)
+  // pour permettre le calcul en temps réel pendant que l'admin remplit les scores.
+  if (resultsAvailable && myPersonalRank.length > 0) {
+    
+    // On définit le bottom 5 sur la totalité de la grille de l'utilisateur (les 5 derniers de sa liste)
     const userBottom5 = myPersonalRank.slice(-5);
 
     myPersonalRank.forEach((countryId, userIdx) => {
-      // +2 for an exact rank hit
-      if (countryId === officialIds[userIdx]) {
-        const officialRank = userIdx + 1; // same for both
+      // On compare uniquement avec les rangs officiels actuellement disponibles
+      if (userIdx < officialIds.length && countryId === officialIds[userIdx]) {
+        const officialRank = userIdx + 1;
         personalRankRows.push({
           countryId,
           pts: 2,
@@ -249,7 +251,7 @@ const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
       }
     });
 
-    // -2 for each official top-5 country buried in the user's bottom 5
+    // -2 pour chaque pays du Top 5 officiel que l'utilisateur a mis dans ses 5 derniers
     officialTop5.forEach((favId) => {
       if (userBottom5.includes(favId)) {
         const userRank = myPersonalRank.indexOf(favId) + 1;
@@ -263,11 +265,10 @@ const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
       }
     });
 
-    // Sort: positives first, then negatives
+    // Tri : points positifs d'abord
     personalRankRows.sort((a, b) => b.pts - a.pts);
   }
 
-  // ── 4. Render ─────────────────────────────────────────────────────────────
   return (
     <div style={styles.overlay} onClick={onClose}>
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -293,7 +294,7 @@ const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
           <h3 style={styles.sectionTitle}>Détail de la grille de pronostics</h3>
           <div style={styles.table}>
 
-            {/* ── TOP 5 GÉNÉRAL ─────────────────────────────────────────── */}
+            {/* ── TOP 5 GÉNÉRAL ── */}
             <div style={styles.categoryDivider}>
               <Trophy size={14} style={{ marginRight: '6px' }} />
               Top 5 Général
@@ -315,7 +316,7 @@ const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
               ))
             )}
 
-            {/* ── TOP 3 JURY ────────────────────────────────────────────── */}
+            {/* ── TOP 3 JURY ── */}
             <div style={styles.categoryDivider}>
               <Scale size={14} style={{ marginRight: '6px' }} />
               Top 3 Vote du Jury
@@ -337,7 +338,7 @@ const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
               ))
             )}
 
-            {/* ── TOP 3 PUBLIC ──────────────────────────────────────────── */}
+            {/* ── TOP 3 PUBLIC ── */}
             <div style={styles.categoryDivider}>
               <Smartphone size={14} style={{ marginRight: '6px' }} />
               Top 3 Télévote Public
@@ -359,13 +360,12 @@ const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
               ))
             )}
 
-            {/* ── BONUS SPÉCIFIQUES ─────────────────────────────────────── */}
+            {/* ── BONUS SPÉCIFIQUES ── */}
             <div style={styles.categoryDivider}>
               <Award size={14} style={{ marginRight: '6px' }} />
               Bonus Spécifiques
             </div>
 
-            {/* Most 12 points */}
             <div style={styles.tableRow}>
               <div style={styles.rowLeft}>
                 <span style={styles.iconWidth}><Award size={14} color="#ffd700" /></span>
@@ -379,7 +379,6 @@ const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
               {renderPointBadge(most12Pts)}
             </div>
 
-            {/* Last place */}
             <div style={styles.tableRow}>
               <div style={styles.rowLeft}>
                 <span style={styles.iconWidth}><Award size={14} color="#fc8181" /></span>
@@ -393,7 +392,6 @@ const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
               {renderPointBadge(lastPts)}
             </div>
 
-            {/* Points public du vainqueur */}
             <div style={styles.tableRow}>
               <div style={styles.rowLeft}>
                 <span style={styles.iconWidth}><Layers size={14} color="#f6ad55" /></span>
@@ -405,7 +403,7 @@ const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
               {renderPointBadge(winnerPts)}
             </div>
 
-            {/* ── PARI ZÉRO POINT ───────────────────────────────────────── */}
+            {/* ── PARI ZÉRO POINT ── */}
             <div style={styles.categoryDivider}>
               <Trash2 size={14} style={{ marginRight: '6px' }} />
               Pari Risqué : Les "0 Point"
@@ -427,7 +425,7 @@ const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
               ))
             )}
 
-            {/* ── BONUS CLASSEMENT PERSO ────────────────────────────────── */}
+            {/* ── BONUS CLASSEMENT PERSO FIXÉ ── */}
             {resultsAvailable && (
               <>
                 <div style={styles.categoryDivider}>
@@ -437,10 +435,6 @@ const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
 
                 {myPersonalRank.length === 0 ? (
                   <p style={styles.noData}>Aucun classement personnel enregistré.</p>
-                ) : myPersonalRank.length !== officialIds.length ? (
-                  <p style={styles.noData}>
-                    Classement incomplet ({myPersonalRank.length} pays sur {officialIds.length}) — recalcul impossible.
-                  </p>
                 ) : personalRankRows.length === 0 ? (
                   <p style={styles.noData}>Aucun rang exact ni favori mal classé — 0 pt dans cette catégorie.</p>
                 ) : (
@@ -469,10 +463,12 @@ const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
 
           </div>
 
-          {/* ── TOTAL ─────────────────────────────────────────────────────── */}
+          {/* ── TOTAL (Affiche le score officiel de la DB s'il existe, sinon le computed) ── */}
           <div style={styles.totalBlock}>
             <span style={styles.totalLabel}>Score total validé</span>
-            <span style={styles.totalPoints}>{player?.score ?? 0} pts</span>
+            <span style={styles.totalPoints}>
+              {typeof player?.score === 'number' ? player.score : totalComputed} pts
+            </span>
           </div>
         </div>
       </div>
