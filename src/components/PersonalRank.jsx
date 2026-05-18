@@ -3,10 +3,10 @@ import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/firebaseConfig';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
-// Icônes de Lucide
-import { GripVertical, Save, CheckCircle2, Award, AlertCircle, MessageSquare, X, Lock } from 'lucide-react';
+// Icônes de Lucide (avec l'ajout de Trophy)
+import { GripVertical, Save, CheckCircle2, Award, AlertCircle, MessageSquare, X, Lock, Trophy } from 'lucide-react';
 
-const PersonalRank = ({ user }) => {
+const PersonalRank = ({ user, onOpenLeaderboard }) => {
   const [countries, setCountries] = useState([]);
   const [notes, setNotes] = useState({});
   const [isVotesLocked, setIsVotesLocked] = useState(false);
@@ -196,7 +196,7 @@ const PersonalRank = ({ user }) => {
         </Droppable>
       </DragDropContext>
 
-      {/* 👑 ACTION ZONE FIXE/FLOTTANTE EN BAS */}
+      {/* 👑 ACTION ZONE FIXE EN BAS (BOUTONS CÔTE À CÔTE) */}
       <div style={styles.actionZone}>
         {statusMessage && (
           <p style={statusMessage.includes('Erreur') ? styles.errorMsg : styles.successMsg}>
@@ -204,32 +204,45 @@ const PersonalRank = ({ user }) => {
             {statusMessage}
           </p>
         )}
-        <button 
-          onClick={handleSave} 
-          disabled={saving || isVotesLocked} 
-          style={{
-            ...styles.saveBtn,
-            background: isVotesLocked ? 'rgba(255, 255, 255, 0.05)' : '#ff007f',
-            color: isVotesLocked ? '#718096' : '#fff',
-            boxShadow: isVotesLocked ? 'none' : '0 0 15px rgba(255,0,127,0.3)',
-            cursor: isVotesLocked ? 'not-allowed' : 'pointer'
-          }}
-        >
-          {isVotesLocked ? (
-            <>
-              <Lock size={18} style={{ marginRight: '8px' }} />
-              Classement Verrouillé
-            </>
-          ) : (
-            <>
-              <Save size={18} style={{ marginRight: '8px' }} />
-              {saving ? 'Sauvegarde...' : 'Sauvegarder'}
-            </>
-          )}
-        </button>
+        
+        <div style={styles.btnGroup}>
+          {/* 1. Bouton Sauvegarder (Prend la place restante à gauche) */}
+          <button 
+            onClick={handleSave} 
+            disabled={saving || isVotesLocked} 
+            style={{
+              ...styles.saveBtn,
+              background: isVotesLocked ? 'rgba(255, 255, 255, 0.05)' : '#ff007f',
+              color: isVotesLocked ? '#718096' : '#fff',
+              boxShadow: isVotesLocked ? 'none' : '0 0 15px rgba(255,0,127,0.3)',
+              cursor: isVotesLocked ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {isVotesLocked ? (
+              <>
+                <Lock size={18} style={{ marginRight: '8px' }} />
+                Verrouillé
+              </>
+            ) : (
+              <>
+                <Save size={18} style={{ marginRight: '8px' }} />
+                {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+              </>
+            )}
+          </button>
+
+          {/* 2. Bouton Leaderboard à droite (Style verre translucide) */}
+          <button 
+            onClick={onOpenLeaderboard} 
+            style={styles.leaderboardBtn}
+            title="Classement Général"
+          >
+            <Trophy size={20} color="#ffd700" />
+          </button>
+        </div>
       </div>
 
-      {/* MODAL DE NOTES (ne s'ouvrira pas de toute façon via click grâce au guard de openNotesModal) */}
+      {/* MODAL DE NOTES */}
       {activeCountry && !isVotesLocked && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
@@ -272,7 +285,6 @@ const styles = {
   infoCardText: { margin: 0, fontSize: '0.85rem', color: '#cbd5e0', lineHeight: '1.4', fontFamily: "'Outfit', sans-serif" },
   listContainer: { display: 'flex', flexDirection: 'column', gap: '8px' },
   
-  // Correction de justifyRules -> justifyContent
   card: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', borderRadius: '10px', border: '1px solid', backdropFilter: 'blur(4px)', boxSizing: 'border-box', transition: 'background-color 0.1s ease, border-color 0.1s ease' },
   rankNumber: { fontFamily: "'Fredoka', sans-serif", fontSize: '1rem', fontWeight: 500, color: '#ff007f', width: '40px' },
   countryInfo: { display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 },
@@ -297,25 +309,48 @@ const styles = {
     boxSizing: 'border-box',
     borderTop: '1px solid rgba(255, 255, 255, 0.08)',
     zIndex: 100,
-    boxShadow: '0 -10px 30px rgba(0,0,0,0.5)'
+    boxShadow: '0 -10px 30px rgba(0,0,0,0.5)',
+    display: 'flex',
+    flexDirection: 'column'
+  },
+  btnGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    width: '100%'
   },
   saveBtn: {
-    width: '100%',
+    flex: 1,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     padding: '14px',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '10px',
     fontSize: '1rem',
     fontWeight: 600,
     fontFamily: "'Outfit', sans-serif",
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
+    height: '50px',
+    boxSizing: 'border-box'
+  },
+  leaderboardBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '14px',
+    width: '50px',
+    height: '50px',
+    background: 'rgba(255, 255, 255, 0.04)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    boxSizing: 'border-box'
   },
   successMsg: { color: '#48bb78', fontSize: '0.9rem', marginBottom: '12px', fontWeight: 500, fontFamily: "'Outfit', sans-serif" },
   errorMsg: { color: '#f56565', fontSize: '0.9rem', marginBottom: '12px', fontWeight: 500, fontFamily: "'Outfit', sans-serif" },
 
-  // Correction de justifyRules -> justifyContent dans les styles de modales
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.65)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' },
   modalContent: { background: '#16171d', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '16px', width: '100%', maxWidth: '420px', padding: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', fontFamily: "'Outfit', sans-serif" },
   modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' },

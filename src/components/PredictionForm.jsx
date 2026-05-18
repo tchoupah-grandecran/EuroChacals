@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase/firebaseConfig';
 import { collection, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
 
-// Import des icônes Lucide
+// Import des icônes Lucide (avec l'ajout de Lock)
 import { Trophy, Scale, Smartphone, Zap, Skull, Binary, Lock, AlertTriangle, CheckCircle } from 'lucide-react';
 
-const PredictionForm = ({ user }) => {
+const PredictionForm = ({ user, onOpenLeaderboard }) => {
   const [countries, setCountries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -88,11 +88,11 @@ const PredictionForm = ({ user }) => {
     if (isLocked) return;
     
     if (top5.includes(null) || top3Jury.includes(null) || top3Public.includes(null) || !lastPlace || !mostTwelvePoints) {
-      setMessage("Remplis l'ensemble des classements et bonus avant d'envoyer !");
+      setMessage("❌ Remplis l'ensemble des classements et bonus avant d'envoyer !");
       return;
     }
     if (zeroPoints.length < 1) {
-      setMessage("Choisis au moins 1 pays (et max 5) pour le pari 'Zéro Points'.");
+      setMessage("❌ Choisis au moins 1 pays (et max 5) pour le pari 'Zéro Points'.");
       return;
     }
 
@@ -114,7 +114,7 @@ const PredictionForm = ({ user }) => {
       });
       setMessage("Pronostics complets enregistrés ! Que la bataille commence !");
     } catch (error) {
-      setMessage("Erreur lors de la sauvegarde.");
+      setMessage("❌ Erreur lors de la sauvegarde.");
     } finally {
       setSaving(false);
     }
@@ -124,7 +124,6 @@ const PredictionForm = ({ user }) => {
 
   return (
     <div style={styles.container}>
-      {/* Injecteur CSS pour masquer les flèches du type number */}
       <style>{`
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { 
@@ -254,7 +253,7 @@ const PredictionForm = ({ user }) => {
           <input type="number" placeholder="Ex: 350" value={publicPoints} onChange={(e) => setPublicPoints(e.target.value)} style={styles.input} required disabled={isLocked} />
         </div>
 
-        {/* ZONE ACTIONS FLOTTANTE EN BAS */}
+        {/* 👑 ZONE ACTIONS FLOTTANTE EN BAS (BOUTONS CÔTE À CÔTE) */}
         <div style={styles.actionZone}>
           {message && (
             <p style={{ ...styles.message, color: message.startsWith('❌') ? '#fc8181' : '#68d391' }}>
@@ -263,16 +262,29 @@ const PredictionForm = ({ user }) => {
             </p>
           )}
 
-          {isLocked ? (
-            <div style={styles.lockedNotice}>
-              <Lock size={18} style={{ marginBottom: '4px' }} />
-              <div>Les votes sont clôturés ! Les grilles sont figées.</div>
-            </div>
-          ) : (
-            <button type="submit" disabled={saving} style={saving ? styles.btnDisabled : styles.btn}>
-              {saving ? 'Enregistrement...' : 'Valider mes pronostics'}
+          <div style={styles.btnGroup}>
+            {/* 1. Bouton ou Notice principale à gauche */}
+            {isLocked ? (
+              <div style={styles.lockedNotice}>
+                <Lock size={16} style={{ marginRight: '6px' }} />
+                <span>Grilles figées et closes.</span>
+              </div>
+            ) : (
+              <button type="submit" disabled={saving} style={saving ? styles.btnDisabled : styles.btn}>
+                {saving ? 'Enregistrement...' : 'Valider mes pronostics'}
+              </button>
+            )}
+
+            {/* 2. Bouton Leaderboard à droite */}
+            <button 
+              type="button"
+              onClick={onOpenLeaderboard} 
+              style={styles.leaderboardBtn}
+              title="Classement Général"
+            >
+              <Trophy size={20} color="#ffd700" />
             </button>
-          )}
+          </div>
         </div>
       </form>
     </div>
@@ -282,7 +294,7 @@ const PredictionForm = ({ user }) => {
 const styles = {
   container: { background: 'rgba(255, 255, 255, 0.04)', padding: '25px', paddingBottom: '160px', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.08)', marginTop: '20px', fontFamily: "'Outfit', sans-serif" },
   title: { fontFamily: "'Fredoka', sans-serif", fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', fontSize: '1.4rem', margin: '0 0 20px 0', color: '#ff007f', textAlign: 'center' },
-  lockBanner: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(246, 173, 85, 0.1)', color: '#f6ad55', border: '1px solid rgba(246, 173, 85, 0.3)', padding: '12px', borderRadius: '8px', textAlign: 'center', fontWeight: 500, marginBottom: '20px', fontSize: '0.9rem' },
+  lockBanner: { display: 'flex', alignItems: 'center', center: 'center', justifyContent: 'center', background: 'rgba(246, 173, 85, 0.1)', color: '#f6ad55', border: '1px solid rgba(246, 173, 85, 0.3)', padding: '12px', borderRadius: '8px', textAlign: 'center', fontWeight: 500, marginBottom: '20px', fontSize: '0.9rem' },
   form: { display: 'flex', flexDirection: 'column', gap: '20px' },
   section: { background: 'rgba(0, 0, 0, 0.25)', padding: '18px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.04)' },
   sectionTitle: { display: 'flex', alignItems: 'center', fontFamily: "'Fredoka', sans-serif", fontWeight: 400, letterSpacing: '0.04em', margin: '0 0 15px 0', fontSize: '1.05rem', color: '#cbd5e0', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '8px' },
@@ -290,7 +302,6 @@ const styles = {
   rankNumber: { fontFamily: "'Fredoka', sans-serif", fontWeight: 500, color: '#ff007f', minWidth: '30px' },
   label: { display: 'block', fontSize: '0.85rem', marginBottom: '8px', color: '#a0aec0', fontWeight: 400 },
   
-  // Refonte complète de l'élément Select pour un feeling natif immersif
   select: { 
     flex: 1, 
     width: '100%', 
@@ -305,7 +316,6 @@ const styles = {
     appearance: 'none',
     WebkitAppearance: 'none',
     MozAppearance: 'none',
-    // Ajout d'une flèche personnalisée épurée en SVG
     backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ff007f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>")`,
     backgroundRepeat: 'no-repeat',
     backgroundPosition: 'right 12px center',
@@ -327,21 +337,29 @@ const styles = {
     transform: 'translateX(-50%)',
     width: '100%',
     maxWidth: '1126px',
-    background: 'rgba(22, 23, 29, 0.05)',
+    background: 'rgba(22, 23, 29, 0.65)',
     backdropFilter: 'blur(16px)',
     WebkitBackdropFilter: 'blur(16px)',
     padding: '16px 20px',
     paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
     boxSizing: 'border-box',
+    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
     zIndex: 100,
+    boxShadow: '0 -10px 30px rgba(0,0,0,0.5)',
     display: 'flex',
-    flexDirection: 'column',
-    gap: '10px'
+    flexDirection: 'column'
   },
-  btn: { width: '100%', background: '#ff007f', color: '#fff', border: 'none', padding: '14px', borderRadius: '8px', fontWeight: 500, fontFamily: "'Outfit', sans-serif", cursor: 'pointer', fontSize: '1rem', boxShadow: '0 0 15px rgba(255,0,127,0.3)', transition: 'background 0.2s' },
-  btnDisabled: { width: '100%', background: '#4a5568', color: '#a0aec0', border: 'none', padding: '14px', borderRadius: '8px', cursor: 'not-allowed', fontFamily: "'Outfit', sans-serif" },
-  lockedNotice: { width: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignEstils: 'center', alignItems: 'center', justifyContent: 'center', background: 'rgba(229, 62, 62, 0.1)', color: '#fc8181', border: '1px solid rgba(229, 62, 62, 0.3)', padding: '12px', borderRadius: '8px', textAlign: 'center', fontWeight: 500, fontSize: '0.9rem', lineHeight: '1.4' },
-  message: { textAlign: 'center', fontWeight: 500, margin: 0, fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }
+  btnGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    width: '100%'
+  },
+  btn: { flex: 1, height: '50px', background: '#ff007f', color: '#fff', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 600, fontFamily: "'Outfit', sans-serif", cursor: 'pointer', fontSize: '1rem', boxShadow: '0 0 15px rgba(255,0,127,0.3)', transition: 'background 0.2s', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  btnDisabled: { flex: 1, height: '50px', background: '#4a5568', color: '#a0aec0', border: 'none', padding: '14px', borderRadius: '10px', cursor: 'not-allowed', fontFamily: "'Outfit', sans-serif", boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  lockedNotice: { flex: 1, height: '50px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255, 255, 255, 0.05)', color: '#718096', border: 'none', padding: '14px', borderRadius: '10px', textAlign: 'center', fontWeight: 600, fontSize: '1rem', fontFamily: "'Outfit', sans-serif" },
+  leaderboardBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px', width: '50px', height: '50px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.12)', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s', boxSizing: 'border-box' },
+  message: { textAlign: 'center', fontWeight: 500, margin: '0 0 12px 0', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontFamily: "'Outfit', sans-serif" }
 };
 
 export default PredictionForm;
