@@ -100,7 +100,7 @@ const PredictionForm = ({ user, onOpenLeaderboard }) => {
     setMessage('');
 
     try {
-      await setDoc(doc(db, 'predictions', user.uid), {
+      await setDoc(doc(db, 'predictions', user.uid, { merge: true }), {
         userId: user.uid,
         userName: user.displayName || "Anonyme",
         top5,

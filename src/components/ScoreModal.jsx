@@ -1,12 +1,11 @@
 import React from 'react';
 
-// 📊 Import des icônes Lucide nécessaires
+// 📊 Import des icônes Lucide
 import { 
   X, Trophy, Scale, Smartphone, Award, Trash2, 
-  Layers, CheckCircle, FileText, List
+  Layers, CheckCircle, FileText, List, AlertTriangle
 } from 'lucide-react';
 
-// 🌍 Le Master pour retrouver les noms complets et les drapeaux via l'ID (Code Pays)
 const MASTER_COUNTRIES = [
   { id: 'AL', name: 'Albanie', flag: '🇦🇱' }, { id: 'DE', name: 'Allemagne', flag: '🇩🇪' },
   { id: 'AM', name: 'Arménie', flag: '🇦🇲' }, { id: 'AU', name: 'Australie', flag: '🇦🇺' },
@@ -29,245 +28,35 @@ const MASTER_COUNTRIES = [
   { id: 'UA', name: 'Ukraine', flag: '🇺🇦' }
 ];
 
-// Helper: get flag + name from country id
 const getCountryLabel = (id) => {
   if (!id) return '-';
   const country = MASTER_COUNTRIES.find(c => c.id === id);
   return country ? `${country.flag} ${country.name}` : id;
 };
 
-// Helper: colored point badge
 const renderPointBadge = (pts) => {
-  if (pts > 0) {
-    return <span style={{ ...styles.badge, color: '#68d391', backgroundColor: 'rgba(104, 211, 145, 0.12)', border: '1px solid rgba(104, 211, 145, 0.2)' }}>+{pts} pts</span>;
-  }
-  if (pts < 0) {
-    return <span style={{ ...styles.badge, color: '#fc8181', backgroundColor: 'rgba(252, 129, 129, 0.12)', border: '1px solid rgba(252, 129, 129, 0.2)' }}>{pts} pts</span>;
-  }
+  if (pts > 0) return <span style={{ ...styles.badge, color: '#68d391', backgroundColor: 'rgba(104, 211, 145, 0.12)', border: '1px solid rgba(104, 211, 145, 0.2)' }}>+{pts} pts</span>;
+  if (pts < 0) return <span style={{ ...styles.badge, color: '#fc8181', backgroundColor: 'rgba(252, 129, 129, 0.12)', border: '1px solid rgba(252, 129, 129, 0.2)' }}>{pts} pts</span>;
   return <span style={{ ...styles.badge, color: '#718096', backgroundColor: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>0 pt</span>;
 };
 
-const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
+const ScoreModal = ({ isOpen, onClose, player }) => {
   if (!isOpen || !player) return null;
 
-  // ── 1. Player predictions (stored in leaderboard document) ────────────────
-  const predictions = player?.predictions || {};
-  const predTop5       = predictions.top5          || [];
-  const predTop3Jury   = predictions.top3Jury      || [];
-  const predTop3Public = predictions.top3Public    || [];
-  const predMost12     = predictions.mostTwelvePoints || '';
-  const predLast       = predictions.lastPlace     || '';
-  const predPoints     = predictions.winnerPublicPoints;
-  const predZeroPoints = predictions.zeroPoints    || [];
+  // On récupère toutes les données pré-calculées par le Leaderboard !
+  const { scoreDetails: details, resultsAvailable, computedScore, predictions } = player;
 
-  // ── 2. Official results (from results/officialRawScores) ──────────────────
-  const officialScores    = liveResults?.scores || [];
-  const activeScores      = officialScores.filter(c => typeof c.total === 'number');
-  const resultsAvailable  = activeScores.length > 0;
+  const most12Note = resultsAvailable 
+    ? (details.most12.pts > 0 ? 'Correct ! (+5)' : (details.most12.realId ? `Faux — Réel : ${getCountryLabel(details.most12.realId)}` : 'Résultat non publié'))
+    : 'En attente';
 
-  // Build sorted rankings from official scores
-  const sortedByTotal  = [...activeScores].sort((a, b) => b.total  - a.total);
-  const sortedByJury   = [...activeScores].sort((a, b) => b.jury   - a.jury);
-  const sortedByPublic = [...activeScores].sort((a, b) => b.public - a.public);
+  const lastNote = resultsAvailable 
+    ? (details.last.pts > 0 ? '🥄 Cuillère de bois ! (+7)' : (details.last.realId ? `Faux — Dernier réel : ${getCountryLabel(details.last.realId)}` : 'Résultat non publié'))
+    : 'En attente';
 
-  const officialIds       = sortedByTotal.map(c => c.id);
-  const officialTop5      = officialIds.slice(0, 5);
-  const officialLastId    = officialIds[officialIds.length - 1];
-  const officialJuryIds   = sortedByJury.map(c => c.id);
-  const officialPublicIds = sortedByPublic.map(c => c.id);
-  const officialMost12    = liveResults?.mostTwelvePoints || '';
-  const officialWinner    = sortedByTotal[0];
-
-  // ── 3. Compute each category score ────────────────────────────────────────
-  let totalComputed = 0;
-
-  // --- Top 5 Général ---
-  const top5Rows = predTop5.map((countryId, idx) => {
-    let pts = 0;
-    let note = '';
-    if (resultsAvailable && countryId) {
-      if (idx === 0 && countryId === officialIds[0]) {
-        pts = 5; note = '🏆 Vainqueur exact !';
-      } else if (idx === 0 && officialTop5.includes(countryId)) {
-        pts = 2; note = 'Dans le Top 5 (pas 1er)';
-      } else if (idx > 0 && officialTop5.includes(countryId)) {
-        pts = 2; note = 'Dans le Top 5';
-      } else if (countryId) {
-        pts = 0;
-        note = idx === 0
-          ? `Faux — Vainqueur réel : ${getCountryLabel(officialIds[0])}`
-          : 'Hors du Top 5';
-      }
-    } else if (!resultsAvailable) {
-      note = 'En attente des résultats officiels';
-    }
-    totalComputed += pts;
-    return { idx, countryId, pts, note };
-  });
-
-  // --- Top 3 Jury ---
-  const top3JuryRows = predTop3Jury.map((countryId, idx) => {
-    let pts = 0;
-    let note = '';
-    if (resultsAvailable && countryId) {
-      if (idx === 0 && countryId === officialJuryIds[0]) {
-        pts = 3; note = '🥇 1er Jury exact !';
-      } else if (officialJuryIds.slice(0, 3).includes(countryId)) {
-        pts = 1; note = 'Dans le Top 3 Jury';
-      } else {
-        pts = 0;
-        note = idx === 0
-          ? `Faux — 1er Jury réel : ${getCountryLabel(officialJuryIds[0])}`
-          : 'Hors du Top 3 Jury';
-      }
-    } else if (!resultsAvailable) {
-      note = 'En attente des résultats officiels';
-    }
-    totalComputed += pts;
-    return { idx, countryId, pts, note };
-  });
-
-  // --- Top 3 Public ---
-  const top3PublicRows = predTop3Public.map((countryId, idx) => {
-    let pts = 0;
-    let note = '';
-    if (resultsAvailable && countryId) {
-      if (idx === 0 && countryId === officialPublicIds[0]) {
-        pts = 3; note = '🥇 1er Télévote exact !';
-      } else if (officialPublicIds.slice(0, 3).includes(countryId)) {
-        pts = 1; note = 'Dans le Top 3 Public';
-      } else {
-        pts = 0;
-        note = idx === 0
-          ? `Faux — 1er Public réel : ${getCountryLabel(officialPublicIds[0])}`
-          : 'Hors du Top 3 Public';
-      }
-    } else if (!resultsAvailable) {
-      note = 'En attente des résultats officiels';
-    }
-    totalComputed += pts;
-    return { idx, countryId, pts, note };
-  });
-
-  // --- Most 12 points ---
-  let most12Pts = 0;
-  let most12Note = '';
-  if (resultsAvailable) {
-    if (predMost12 && predMost12 === officialMost12) {
-      most12Pts = 5; most12Note = 'Correct ! (+5)';
-    } else if (predMost12) {
-      most12Note = officialMost12
-        ? `Faux — Réel : ${getCountryLabel(officialMost12)}`
-        : 'Résultat non encore publié';
-    }
-  } else {
-    most12Note = 'En attente des résultats officiels';
-  }
-  totalComputed += most12Pts;
-
-  // --- Dernier (Last place) ---
-  let lastPts = 0;
-  let lastNote = '';
-  if (resultsAvailable) {
-    if (predLast && predLast === officialLastId) {
-      lastPts = 7; lastNote = '🥄 Cuillère de bois trouvée ! (+7)';
-    } else if (predLast) {
-      lastNote = officialLastId
-        ? `Faux — Dernier réel : ${getCountryLabel(officialLastId)}`
-        : 'Résultat non encore publié';
-    }
-  } else {
-    lastNote = 'En attente des résultats officiels';
-  }
-  totalComputed += lastPts;
-
-  // --- Points public du vainqueur ---
-  let winnerPts = 0;
-  let winnerNote = '';
-  if (resultsAvailable && officialWinner && predPoints !== undefined && predPoints !== null) {
-    const targetPublic = officialWinner.public;
-    const delta = Math.abs(Number(predPoints) - targetPublic);
-    winnerNote = `Pari : ${predPoints} pts — ${getCountryLabel(officialWinner.id)} a eu ${targetPublic} pts du public (écart : ${delta})`;
-    if (delta === 0)       winnerPts = 100;
-    else if (delta <= 20)  winnerPts = 50;
-    else if (delta <= 50)  winnerPts = 20;
-    else if (delta <= 75)  winnerPts = 10;
-    else if (delta <= 150) winnerPts = 5;
-    else if (delta <= 200) winnerPts = 1;
-    else                   winnerNote += ' — Écart trop important';
-  } else if (!resultsAvailable) {
-    winnerNote = 'En attente des résultats officiels';
-  } else if (predPoints === undefined || predPoints === null) {
-    winnerNote = 'Aucun pari enregistré';
-  }
-  totalComputed += winnerPts;
-
-  // --- Pari Zéro Point ---
-  const zeroRows = predZeroPoints.map((countryId) => {
-    let pts = 0;
-    let note = 'En attente des résultats officiels';
-    if (resultsAvailable) {
-      const actual = activeScores.find(c => c.id === countryId);
-      if (actual) {
-        if (actual.total === 0) {
-          pts = 15; note = `✅ 0 point confirmé ! (+15)`;
-        } else {
-          pts = -5; note = `❌ A obtenu ${actual.total} pts (-5)`;
-        }
-      } else {
-        note = 'Pays non trouvé dans les résultats';
-      }
-    }
-    totalComputed += pts;
-    return { countryId, pts, note };
-  });
-
-  // --- Bonus Grille Perso (myPersonalRank) ---
-  // +2 pts par rang exact (rang utilisateur === rang officiel)
-  // -2 pts par favori officiel du top 5 trouvé dans le bottom 5 de l'utilisateur
-  const personalRankRows = [];
-  
-  // FIX : On récupère la clé de manière sûre
-  const myPersonalRank = predictions.myPersonalRank || player?.myPersonalRank || [];
-
-  // FIX SYNCHRO : On retire la condition stricte de longueur identique (myPersonalRank.length === officialIds.length)
-  // pour permettre le calcul en temps réel pendant que l'admin remplit les scores.
-  if (resultsAvailable && myPersonalRank.length > 0) {
-    
-    // On définit le bottom 5 sur la totalité de la grille de l'utilisateur (les 5 derniers de sa liste)
-    const userBottom5 = myPersonalRank.slice(-5);
-
-    myPersonalRank.forEach((countryId, userIdx) => {
-      // On compare uniquement avec les rangs officiels actuellement disponibles
-      if (userIdx < officialIds.length && countryId === officialIds[userIdx]) {
-        const officialRank = userIdx + 1;
-        personalRankRows.push({
-          countryId,
-          pts: 2,
-          note: `Rang exact #${officialRank} ✓`,
-          type: 'exact'
-        });
-        totalComputed += 2;
-      }
-    });
-
-    // -2 pour chaque pays du Top 5 officiel que l'utilisateur a mis dans ses 5 derniers
-    officialTop5.forEach((favId) => {
-      if (userBottom5.includes(favId)) {
-        const userRank = myPersonalRank.indexOf(favId) + 1;
-        personalRankRows.push({
-          countryId: favId,
-          pts: -2,
-          note: `Favori officiel relégué à ta place #${userRank}`,
-          type: 'penalty'
-        });
-        totalComputed -= 2;
-      }
-    });
-
-    // Tri : points positifs d'abord
-    personalRankRows.sort((a, b) => b.pts - a.pts);
-  }
+  const winnerNote = resultsAvailable && details.winnerPts.val != null
+    ? `Pari : ${details.winnerPts.val} pts — Réel : ${details.winnerPts.realPts} (écart : ${details.winnerPts.delta})`
+    : (details.winnerPts.val == null ? 'Aucun pari' : 'En attente');
 
   return (
     <div style={styles.overlay} onClick={onClose}>
@@ -275,200 +64,121 @@ const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
         <div style={styles.header}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
             <FileText size={20} color="#ff007f" style={{ flexShrink: 0 }} />
-            <h2 style={styles.modalTitle}>
-              {player?.displayName || player?.name || 'Joueur'}
-            </h2>
+            <h2 style={styles.modalTitle}>{player.displayName || 'Joueur'}</h2>
           </div>
-          <button onClick={onClose} style={styles.closeBtn}>
-            <X size={18} />
-          </button>
+          <button onClick={onClose} style={styles.closeBtn}><X size={18} /></button>
         </div>
 
         <div style={styles.content}>
           {!resultsAvailable && (
             <div style={styles.warningBanner}>
-              ⏳ Les résultats officiels ne sont pas encore disponibles. Les points affichés sont des estimations à 0 en attente de publication par l'admin.
+              ⏳ Les résultats officiels ne sont pas encore disponibles. Les points calculés sont à zéro.
             </div>
           )}
 
           <h3 style={styles.sectionTitle}>Détail de la grille de pronostics</h3>
           <div style={styles.table}>
-
-            {/* ── TOP 5 GÉNÉRAL ── */}
-            <div style={styles.categoryDivider}>
-              <Trophy size={14} style={{ marginRight: '6px' }} />
-              Top 5 Général
-            </div>
-            {predTop5.length === 0 ? (
-              <p style={styles.noData}>Aucun pronostic Top 5 enregistré.</p>
-            ) : (
-              top5Rows.map(({ idx, countryId, pts, note }) => (
-                <div key={idx} style={styles.tableRow}>
-                  <div style={styles.rowLeft}>
-                    <span style={styles.positionLabel}>#{idx + 1}</span>
-                    <div style={styles.pronoInfo}>
-                      <span style={styles.countryName}>{getCountryLabel(countryId)}</span>
-                      <span style={styles.explication}>{note}</span>
-                    </div>
+            
+            {/* Top 5 */}
+            <div style={styles.categoryDivider}><Trophy size={14} style={{ marginRight: '6px' }} /> Top 5 Général</div>
+            {details.top5.length === 0 ? <p style={styles.noData}>Aucun pronostic enregistré.</p> : details.top5.map((item, idx) => (
+              <div key={idx} style={styles.tableRow}>
+                <div style={styles.rowLeft}>
+                  <span style={styles.positionLabel}>#{idx + 1}</span>
+                  <div style={styles.pronoInfo}>
+                    <span style={styles.countryName}>{getCountryLabel(item.countryId)}</span>
+                    <span style={styles.explication}>{item.note} {item.realTarget ? getCountryLabel(item.realTarget) : ''}</span>
                   </div>
-                  {renderPointBadge(pts)}
                 </div>
-              ))
-            )}
-
-            {/* ── TOP 3 JURY ── */}
-            <div style={styles.categoryDivider}>
-              <Scale size={14} style={{ marginRight: '6px' }} />
-              Top 3 Vote du Jury
-            </div>
-            {predTop3Jury.length === 0 ? (
-              <p style={styles.noData}>Aucun pronostic Jury enregistré.</p>
-            ) : (
-              top3JuryRows.map(({ idx, countryId, pts, note }) => (
-                <div key={idx} style={styles.tableRow}>
-                  <div style={styles.rowLeft}>
-                    <span style={styles.positionLabel}>#{idx + 1}</span>
-                    <div style={styles.pronoInfo}>
-                      <span style={styles.countryName}>{getCountryLabel(countryId)}</span>
-                      <span style={styles.explication}>{note}</span>
-                    </div>
-                  </div>
-                  {renderPointBadge(pts)}
-                </div>
-              ))
-            )}
-
-            {/* ── TOP 3 PUBLIC ── */}
-            <div style={styles.categoryDivider}>
-              <Smartphone size={14} style={{ marginRight: '6px' }} />
-              Top 3 Télévote Public
-            </div>
-            {predTop3Public.length === 0 ? (
-              <p style={styles.noData}>Aucun pronostic Télévote enregistré.</p>
-            ) : (
-              top3PublicRows.map(({ idx, countryId, pts, note }) => (
-                <div key={idx} style={styles.tableRow}>
-                  <div style={styles.rowLeft}>
-                    <span style={styles.positionLabel}>#{idx + 1}</span>
-                    <div style={styles.pronoInfo}>
-                      <span style={styles.countryName}>{getCountryLabel(countryId)}</span>
-                      <span style={styles.explication}>{note}</span>
-                    </div>
-                  </div>
-                  {renderPointBadge(pts)}
-                </div>
-              ))
-            )}
-
-            {/* ── BONUS SPÉCIFIQUES ── */}
-            <div style={styles.categoryDivider}>
-              <Award size={14} style={{ marginRight: '6px' }} />
-              Bonus Spécifiques
-            </div>
-
-            <div style={styles.tableRow}>
-              <div style={styles.rowLeft}>
-                <span style={styles.iconWidth}><Award size={14} color="#ffd700" /></span>
-                <div style={styles.pronoInfo}>
-                  <span style={styles.itemTitle}>
-                    Max de 12 pts Jury : <strong style={styles.countryName}>{getCountryLabel(predMost12)}</strong>
-                  </span>
-                  <span style={styles.explication}>{most12Note || 'Aucun pari enregistré'}</span>
-                </div>
+                {renderPointBadge(item.pts)}
               </div>
-              {renderPointBadge(most12Pts)}
-            </div>
+            ))}
 
-            <div style={styles.tableRow}>
-              <div style={styles.rowLeft}>
-                <span style={styles.iconWidth}><Award size={14} color="#fc8181" /></span>
-                <div style={styles.pronoInfo}>
-                  <span style={styles.itemTitle}>
-                    Dernier de la Finale : <strong style={styles.countryName}>{getCountryLabel(predLast)}</strong>
-                  </span>
-                  <span style={styles.explication}>{lastNote || 'Aucun pari enregistré'}</span>
-                </div>
-              </div>
-              {renderPointBadge(lastPts)}
-            </div>
-
-            <div style={styles.tableRow}>
-              <div style={styles.rowLeft}>
-                <span style={styles.iconWidth}><Layers size={14} color="#f6ad55" /></span>
-                <div style={styles.pronoInfo}>
-                  <span style={styles.itemTitle}>Points Public du Vainqueur</span>
-                  <span style={styles.explication}>{winnerNote || 'Aucun pari enregistré'}</span>
-                </div>
-              </div>
-              {renderPointBadge(winnerPts)}
-            </div>
-
-            {/* ── PARI ZÉRO POINT ── */}
-            <div style={styles.categoryDivider}>
-              <Trash2 size={14} style={{ marginRight: '6px' }} />
-              Pari Risqué : Les "0 Point"
-            </div>
-            {predZeroPoints.length === 0 ? (
-              <p style={styles.noData}>Aucun pays risqué sélectionné.</p>
-            ) : (
-              zeroRows.map(({ countryId, pts, note }, i) => (
-                <div key={i} style={styles.tableRow}>
-                  <div style={styles.rowLeft}>
-                    <span style={styles.iconWidth}><Trash2 size={14} color="#cbd5e0" /></span>
-                    <div style={styles.pronoInfo}>
-                      <span style={styles.countryName}>{getCountryLabel(countryId)}</span>
-                      <span style={styles.explication}>{note}</span>
-                    </div>
+            {/* Top 3 Jury */}
+            <div style={styles.categoryDivider}><Scale size={14} style={{ marginRight: '6px' }} /> Top 3 Jury</div>
+            {details.top3Jury.length === 0 ? <p style={styles.noData}>Aucun pronostic enregistré.</p> : details.top3Jury.map((item, idx) => (
+              <div key={idx} style={styles.tableRow}>
+                <div style={styles.rowLeft}>
+                  <span style={styles.positionLabel}>#{idx + 1}</span>
+                  <div style={styles.pronoInfo}>
+                    <span style={styles.countryName}>{getCountryLabel(item.countryId)}</span>
+                    <span style={styles.explication}>{item.note} {item.realTarget ? getCountryLabel(item.realTarget) : ''}</span>
                   </div>
-                  {renderPointBadge(pts)}
                 </div>
-              ))
-            )}
+                {renderPointBadge(item.pts)}
+              </div>
+            ))}
+            
+            {/* Top 3 Public */}
+            <div style={styles.categoryDivider}><Smartphone size={14} style={{ marginRight: '6px' }} /> Top 3 Télévote</div>
+            {details.top3Public.length === 0 ? <p style={styles.noData}>Aucun pronostic enregistré.</p> : details.top3Public.map((item, idx) => (
+              <div key={idx} style={styles.tableRow}>
+                <div style={styles.rowLeft}>
+                  <span style={styles.positionLabel}>#{idx + 1}</span>
+                  <div style={styles.pronoInfo}>
+                    <span style={styles.countryName}>{getCountryLabel(item.countryId)}</span>
+                    <span style={styles.explication}>{item.note} {item.realTarget ? getCountryLabel(item.realTarget) : ''}</span>
+                  </div>
+                </div>
+                {renderPointBadge(item.pts)}
+              </div>
+            ))}
 
-            {/* ── BONUS CLASSEMENT PERSO FIXÉ ── */}
-            {resultsAvailable && (
+            {/* Bonus Spécifiques */}
+            <div style={styles.categoryDivider}><Award size={14} style={{ marginRight: '6px' }} /> Bonus Spécifiques</div>
+            <div style={styles.tableRow}>
+              <div style={styles.rowLeft}><span style={styles.iconWidth}><Award size={14} color="#ffd700" /></span><div style={styles.pronoInfo}><span style={styles.itemTitle}>Max 12 pts Jury : <strong style={styles.countryName}>{getCountryLabel(details.most12.countryId)}</strong></span><span style={styles.explication}>{most12Note}</span></div></div>{renderPointBadge(details.most12.pts)}
+            </div>
+            <div style={styles.tableRow}>
+              <div style={styles.rowLeft}><span style={styles.iconWidth}><Award size={14} color="#fc8181" /></span><div style={styles.pronoInfo}><span style={styles.itemTitle}>Dernier Finale : <strong style={styles.countryName}>{getCountryLabel(details.last.countryId)}</strong></span><span style={styles.explication}>{lastNote}</span></div></div>{renderPointBadge(details.last.pts)}
+            </div>
+            <div style={styles.tableRow}>
+              <div style={styles.rowLeft}><span style={styles.iconWidth}><Layers size={14} color="#f6ad55" /></span><div style={styles.pronoInfo}><span style={styles.itemTitle}>Points Vainqueur</span><span style={styles.explication}>{winnerNote}</span></div></div>{renderPointBadge(details.winnerPts.pts)}
+            </div>
+
+            {/* Zero Points */}
+            <div style={styles.categoryDivider}><Trash2 size={14} style={{ marginRight: '6px' }} /> Les "0 Point"</div>
+            {details.zeros.length === 0 ? <p style={styles.noData}>Aucun pays risqué sélectionné.</p> : details.zeros.map((item, i) => (
+              <div key={i} style={styles.tableRow}><div style={styles.rowLeft}><span style={styles.iconWidth}><Trash2 size={14} color="#cbd5e0" /></span><div style={styles.pronoInfo}><span style={styles.countryName}>{getCountryLabel(item.countryId)}</span><span style={styles.explication}>{item.note}</span></div></div>{renderPointBadge(item.pts)}</div>
+            ))}
+
+            {/* Classement Perso CONCATÉNÉ */}
+            {resultsAvailable && (details.personalRank.bonus > 0 || details.personalRank.malus < 0) && (
               <>
-                <div style={styles.categoryDivider}>
-                  <List size={14} style={{ marginRight: '6px' }} />
-                  Bonus — Classement Complet Personnel
-                </div>
-
-                {myPersonalRank.length === 0 ? (
-                  <p style={styles.noData}>Aucun classement personnel enregistré.</p>
-                ) : personalRankRows.length === 0 ? (
-                  <p style={styles.noData}>Aucun rang exact ni favori mal classé — 0 pt dans cette catégorie.</p>
-                ) : (
-                  personalRankRows.map(({ countryId, pts, note }, i) => (
-                    <div key={i} style={{
-                      ...styles.tableRow,
-                      background: pts > 0
-                        ? 'rgba(104, 211, 145, 0.04)'
-                        : 'rgba(252, 129, 129, 0.04)'
-                    }}>
-                      <div style={styles.rowLeft}>
-                        <span style={styles.iconWidth}>
-                          <CheckCircle size={14} color={pts > 0 ? '#68d391' : '#fc8181'} />
-                        </span>
-                        <div style={styles.pronoInfo}>
-                          <span style={styles.countryName}>{getCountryLabel(countryId)}</span>
-                          <span style={styles.explication}>{note}</span>
-                        </div>
+                <div style={styles.categoryDivider}><List size={14} style={{ marginRight: '6px' }} /> Bonus / Malus (Classement Personnel)</div>
+                
+                {details.personalRank.bonus > 0 && (
+                  <div style={{ ...styles.tableRow, background: 'rgba(104, 211, 145, 0.04)' }}>
+                    <div style={styles.rowLeft}>
+                      <span style={styles.iconWidth}><CheckCircle size={14} color="#68d391" /></span>
+                      <div style={styles.pronoInfo}>
+                        <span style={styles.itemTitle}>Bonus de similitude globale</span>
+                        <span style={styles.explication}>Positions exactes & Top/Bottom respectés</span>
                       </div>
-                      {renderPointBadge(pts)}
                     </div>
-                  ))
+                    {renderPointBadge(details.personalRank.bonus)}
+                  </div>
+                )}
+                
+                {details.personalRank.malus < 0 && (
+                  <div style={{ ...styles.tableRow, background: 'rgba(252, 129, 129, 0.04)' }}>
+                    <div style={styles.rowLeft}>
+                      <span style={styles.iconWidth}><AlertTriangle size={14} color="#fc8181" /></span>
+                      <div style={styles.pronoInfo}>
+                        <span style={styles.itemTitle}>Malus d'inversion absolue</span>
+                        <span style={styles.explication}>Favoris relégués tout en bas (et inversement)</span>
+                      </div>
+                    </div>
+                    {renderPointBadge(details.personalRank.malus)}
+                  </div>
                 )}
               </>
             )}
-
           </div>
 
-          {/* ── TOTAL (Affiche le score officiel de la DB s'il existe, sinon le computed) ── */}
           <div style={styles.totalBlock}>
-            <span style={styles.totalLabel}>Score total validé</span>
-            <span style={styles.totalPoints}>
-              {typeof player?.score === 'number' ? player.score : totalComputed} pts
-            </span>
+            <span style={styles.totalLabel}>Score total</span>
+            <span style={styles.totalPoints}>{computedScore} pts</span>
           </div>
         </div>
       </div>
@@ -476,6 +186,7 @@ const ScoreModal = ({ isOpen, onClose, player, liveResults }) => {
   );
 };
 
+// Styles inchangés
 const styles = {
   overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(5, 3, 15, 0.85)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '16px' },
   modal: { background: 'linear-gradient(135deg, #161233 0%, #0f0c20 100%)', border: '1px solid rgba(255, 255, 255, 0.08)', padding: '25px', borderRadius: '16px', width: '100%', maxWidth: '560px', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.7)', color: '#fff', fontFamily: "'Outfit', sans-serif" },
