@@ -25,6 +25,20 @@ export const computePlayerScore = (predictions = {}, liveResults) => {
 
   if (!resultsAvailable) return { total: 0, details, resultsAvailable };
 
+  const pronoData = predictions.predictions || predictions; 
+  
+  const predTop5 = pronoData.top5 || [];
+  const predTop3Jury = pronoData.top3Jury || [];
+  const predTop3Public = pronoData.top3Public || [];
+  const predZeros = pronoData.zeroPoints || [];
+  const myRank = pronoData.myPersonalRank || [];
+  const predWinnerPts = pronoData.winnerPublicPoints;
+
+  // Champs à la racine (selon ta capture BDD)
+  const predLastPlace = predictions.lastPlace;
+  const predMost12 = predictions.mostTwelvePoints;
+
+  // ── TRI DES RÉSULTATS ──
   const sortedByTotal = [...activeScores].sort((a, b) => b.total - a.total);
   const sortedByJury = [...activeScores].sort((a, b) => b.jury - a.jury);
   const sortedByPublic = [...activeScores].sort((a, b) => b.public - a.public);
@@ -41,7 +55,7 @@ export const computePlayerScore = (predictions = {}, liveResults) => {
   const winnerActual = sortedByTotal[0];
 
   // Top 5
-  (predictions.top5 || []).forEach((countryId, idx) => {
+  predTop5.forEach((countryId, idx) => {
     let pts = 0, note = '';
     if (idx === 0 && countryId === winnerId) { pts = 5; note = '🏆 Vainqueur exact !'; }
     else if (idx === 0 && officialTop5.includes(countryId)) { pts = 2; note = 'Dans le Top 5 (pas 1er)'; }
@@ -52,7 +66,7 @@ export const computePlayerScore = (predictions = {}, liveResults) => {
   });
 
   // Top 3 Jury
-  (predictions.top3Jury || []).forEach((countryId, idx) => {
+  predTop3Jury.forEach((countryId, idx) => {
     let pts = 0, note = '';
     if (idx === 0 && countryId === officialJuryIds[0]) { pts = 3; note = '🥇 1er Jury exact !'; }
     else if (officialJuryIds.slice(0, 3).includes(countryId)) { pts = 1; note = 'Dans le Top 3 Jury'; }
@@ -62,7 +76,7 @@ export const computePlayerScore = (predictions = {}, liveResults) => {
   });
 
   // Top 3 Public
-  (predictions.top3Public || []).forEach((countryId, idx) => {
+  predTop3Public.forEach((countryId, idx) => {
     let pts = 0, note = '';
     if (idx === 0 && countryId === officialPublicIds[0]) { pts = 3; note = '🥇 1er Télévote exact !'; }
     else if (officialPublicIds.slice(0, 3).includes(countryId)) { pts = 1; note = 'Dans le Top 3 Public'; }
@@ -72,22 +86,22 @@ export const computePlayerScore = (predictions = {}, liveResults) => {
   });
 
   // Most 12 Points
-  if (predictions.mostTwelvePoints) {
-    if (predictions.mostTwelvePoints === realMost12) { details.most12.pts = 5; total += 5; }
-    details.most12.countryId = predictions.mostTwelvePoints;
+  if (predMost12) {
+    if (predMost12 === realMost12) { details.most12.pts = 5; total += 5; }
+    details.most12.countryId = predMost12;
     details.most12.realId = realMost12;
   }
 
   // Dernière place
-  if (predictions.lastPlace) {
-    if (predictions.lastPlace === lastId) { details.last.pts = 7; total += 7; }
-    details.last.countryId = predictions.lastPlace;
+  if (predLastPlace) {
+    if (predLastPlace === lastId) { details.last.pts = 7; total += 7; }
+    details.last.countryId = predLastPlace;
     details.last.realId = lastId;
   }
 
   // Points Vainqueur
-  if (winnerActual && predictions.winnerPublicPoints != null) {
-    const delta = Math.abs(Number(predictions.winnerPublicPoints) - winnerActual.public);
+  if (winnerActual && predWinnerPts != null) {
+    const delta = Math.abs(Number(predWinnerPts) - winnerActual.public);
     let pts = 0;
     if (delta === 0) pts = 100;
     else if (delta <= 20) pts = 50;
@@ -95,12 +109,12 @@ export const computePlayerScore = (predictions = {}, liveResults) => {
     else if (delta <= 75) pts = 10;
     else if (delta <= 150) pts = 5;
     else if (delta <= 200) pts = 1;
-    details.winnerPts = { pts, val: predictions.winnerPublicPoints, realPts: winnerActual.public, delta };
+    details.winnerPts = { pts, val: predWinnerPts, realPts: winnerActual.public, delta };
     total += pts;
   }
 
   // Zero Points
-  (predictions.zeroPoints || []).forEach((countryId) => {
+  predZeros.forEach((countryId) => {
     const actual = activeScores.find(c => c.id === countryId);
     let pts = 0, note = 'En attente';
     if (actual && actual.total === 0) { pts = 15; note = `✅ 0 point confirmé !`; }
@@ -109,12 +123,11 @@ export const computePlayerScore = (predictions = {}, liveResults) => {
     details.zeros.push({ countryId, pts, note });
   });
 
-  // Classement Personnel (Bonus / Malus concaténés)
-  let pBonus = 0;
-  let pMalus = 0;
-const myRank = predictions.predictions?.myPersonalRank || [];
-  
+  // Classement Personnel (Bonus / Malus plafonnés)
   if (myRank.length > 0) {
+    let rawBonus = 0;
+    let rawMalus = 0;
+    
     const userTop5 = myRank.slice(0, 5);
     const userBottom5 = myRank.slice(-5);
 
@@ -136,13 +149,17 @@ const myRank = predictions.predictions?.myPersonalRank || [];
       if (inUserBottom && inOfficialTop) countryPts -= 2;
       if (inUserTop && inOfficialBottom) countryPts -= 2;
 
-      if (countryPts > 0) pBonus += countryPts;
-      if (countryPts < 0) pMalus += countryPts;
+      if (countryPts > 0) rawBonus += countryPts;
+      if (countryPts < 0) rawMalus += countryPts;
     });
 
-    total += (pBonus + pMalus);
-    details.personalRank.bonus = pBonus;
-    details.personalRank.malus = pMalus;
+    // Application des limites (+10 max, -10 max)
+    const finalBonus = Math.min(rawBonus, 10);
+    const finalMalus = Math.max(rawMalus, -10);
+
+    total += (finalBonus + finalMalus);
+    details.personalRank.bonus = finalBonus;
+    details.personalRank.malus = finalMalus;
   }
 
   return { total, details, resultsAvailable };
