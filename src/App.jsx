@@ -131,15 +131,6 @@ function AppInner() {
   return (
     <div style={{ minHeight: '100vh', background: t.bgApp, color: t.textPrimary, fontFamily: t.fontBody, position: 'relative' }}>
 
-      {/* ── Junior mode: decorative star strip ── */}
-      {isJunior && (
-        <div style={styles.juniorBanner}>
-          {Array.from({ length: 18 }).map((_, i) => (
-            <Star key={i} size={10} color="#f9a825" fill="#f9a825" style={{ opacity: 0.4 + (i % 3) * 0.2 }} />
-          ))}
-        </div>
-      )}
-
       {/* ── HEADER ── */}
       <header style={{ ...styles.header, background: t.bgHeader }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
@@ -150,21 +141,6 @@ function AppInner() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {/* Junior toggle */}
-          <button
-            onClick={toggle}
-            title={isJunior ? 'Passer en mode classique' : 'Passer en mode Junior'}
-            style={{
-              ...styles.iconBtn,
-              background: isJunior ? 'rgba(249,168,37,0.15)' : 'rgba(255,255,255,0.05)',
-              border: `1px solid ${isJunior ? 'rgba(249,168,37,0.4)' : 'rgba(255,255,255,0.1)'}`,
-              color: isJunior ? '#f9a825' : t.textMuted,
-            }}
-            aria-label="Basculer mode Junior"
-          >
-            <Baby size={14} fill={isJunior ? '#f9a825' : 'none'} />
-          </button>
-
           {/* Rules */}
           <button onClick={() => setShowRulesModal(true)} style={{ ...styles.iconBtn, border: `1px solid ${t.accentBorder}`, background: t.accentSoft }}>
             <HelpCircle size={14} color={t.accent} style={{ flexShrink: 0 }} />
@@ -253,7 +229,29 @@ function AppInner() {
             <p style={styles.logoutUser}>
               Connecté en tant que <strong>{appUser.displayName || 'Joueur'}</strong>
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
+
+            {/* TOGGLE JUNIOR OPTION */}
+            <div style={styles.toggleRow}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Baby size={16} color={isJunior ? '#f9a825' : '#cbd5e0'} />
+                <span style={{ fontSize: '0.9rem', color: '#cbd5e0' }}>Mode Junior</span>
+              </div>
+              <button 
+                onClick={toggle}
+                style={{
+                  ...styles.switchTrack,
+                  backgroundColor: isJunior ? '#f9a825' : 'rgba(255, 255, 255, 0.15)'
+                }}
+                aria-label="Basculer mode Junior"
+              >
+                <div style={{
+                  ...styles.switchThumb,
+                  transform: isJunior ? 'translateX(20px)' : 'translateX(0px)'
+                }} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '16px' }}>
               {isAdmin && (
                 <button onClick={() => { setShowLogoutModal(false); setViewAdmin(true); }} style={styles.adminMenuBtn}>
                   <Settings size={16} style={{ marginRight: '8px' }} /> Console Admin
@@ -336,14 +334,47 @@ const styles = {
     backgroundColor: 'rgba(15,12,32,0.96)', backdropFilter: 'blur(10px)',
     zIndex: 2000, overflowY: 'auto', padding: '30px 0',
   },
-  adminModalContent: { maxWidth: '600px', margin: '0 auto', width: '90%' },
+  adminModalContent: { maxWidth: '1200px', margin: '0 auto', width: '90%' },
   logoutContent: {
     border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px',
     padding: '20px', width: '85%', maxWidth: '320px',
     textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
   },
   logoutTitle: { margin: '0 0 10px', fontSize: '1.2rem', fontWeight: 400 },
-  logoutUser: { fontSize: '0.9rem', color: '#cbd5e0', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' },
+  logoutUser: { fontSize: '0.9rem', color: '#cbd5e0', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' },
+  
+  // Custom Switch / Toggle Button Styles
+  toggleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '10px 12px',
+    background: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: '10px',
+    border: '1px solid rgba(255, 255, 255, 0.06)',
+    marginBottom: '14px'
+  },
+  switchTrack: {
+    position: 'relative',
+    width: '44px',
+    height: '24px',
+    borderRadius: '15px',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '2px',
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'background-color 0.2s ease',
+  },
+  switchThumb: {
+    width: '20px',
+    height: '20px',
+    borderRadius: '50%',
+    background: '#ffffff',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+    transition: 'transform 0.2s ease',
+  },
+
   adminBadge: { background: 'rgba(49,130,206,0.2)', color: '#63b3ed', border: '1px solid rgba(49,130,206,0.4)', fontSize: '0.7rem', padding: '1px 6px', borderRadius: '6px', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.03em' },
   adminMenuBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Outfit', sans-serif", background: 'rgba(49,130,206,0.15)', border: '1px solid #3182ce', color: '#63b3ed', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem' },
   confirmLogoutBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Outfit', sans-serif", background: '#e53e3e', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem' },

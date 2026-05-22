@@ -140,6 +140,8 @@ export const computePlayerScore = (predictions = {}, liveResults) => {
 
 const Leaderboard = () => {
   const { theme: t } = useTheme();
+  const isJunior = t.id === 'junior';
+
   const [activeSubTab, setActiveSubTab] = useState('pronos');
   const [playersBase, setPlayersBase]   = useState([]);
   const [allPredictions, setAllPredictions] = useState({});
@@ -149,6 +151,11 @@ const Leaderboard = () => {
   const [grids, setGrids]               = useState([]);
   const [validated, setValidated]       = useState({});
   const [loadingBingo, setLoadingBingo] = useState(true);
+
+  // If Junior mode is activated while on bingo tab, bounce back to pronos
+  useEffect(() => {
+    if (isJunior && activeSubTab === 'bingo') setActiveSubTab('pronos');
+  }, [isJunior]);
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'results', 'officialRawScores'), (snap) => {
@@ -226,13 +233,16 @@ const Leaderboard = () => {
 
   return (
     <div style={{ fontFamily: t.fontBody }}>
+      {/* Sub-tab bar — Bingo tab hidden in Junior mode */}
       <div style={{ display: 'flex', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '10px', marginBottom: '20px', border: `1px solid ${t.border}` }}>
         <button onClick={() => setActiveSubTab('pronos')} style={activeSubTab === 'pronos' ? subTabActive : subTab}>
           <Sparkles size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Pronostics
         </button>
-        <button onClick={() => setActiveSubTab('bingo')} style={activeSubTab === 'bingo' ? subTabActive : subTab}>
-          <Grid3x3 size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Bingo
-        </button>
+        {!isJunior && (
+          <button onClick={() => setActiveSubTab('bingo')} style={activeSubTab === 'bingo' ? subTabActive : subTab}>
+            <Grid3x3 size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Bingo
+          </button>
+        )}
       </div>
 
       {activeSubTab === 'pronos' && (
@@ -264,7 +274,8 @@ const Leaderboard = () => {
         </div>
       )}
 
-      {activeSubTab === 'bingo' && (
+      {/* Bingo panel — only rendered when not Junior */}
+      {activeSubTab === 'bingo' && !isJunior && (
         <div>
           <h2 style={{ margin: '0', color: t.accent, fontFamily: t.fontDisplay, fontSize: '1.25rem', display: 'flex', alignItems: 'center', fontWeight: 500 }}>
             <Grid3x3 size={20} color={t.accent} style={{ marginRight: '8px' }} /> Classement Bingo

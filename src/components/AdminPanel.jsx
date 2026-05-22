@@ -91,6 +91,7 @@ const ConfirmModal = ({ isOpen, onConfirm, onCancel, t }) => {
 // ── AdminPanel ────────────────────────────────────────────────────────────────
 const AdminPanel = ({ onBack }) => {
   const { theme: t } = useTheme();
+  const isJunior = t.id === 'junior';
   const [activeAdminTab, setActiveAdminTab] = useState('general');
   const [countryScores, setCountryScores]   = useState(MASTER_COUNTRIES.map(c => ({ ...c, jury: 0, public: 0, total: 0 })));
   const [activeFinalistIds, setActiveFinalistIds] = useState([]);
@@ -128,6 +129,10 @@ const AdminPanel = ({ onBack }) => {
     });
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+  if (isJunior && activeAdminTab === 'bingo') setActiveAdminTab('general');
+}, [isJunior]);
 
   const handleToggleFinalist = (id) => setActiveFinalistIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
 
@@ -275,9 +280,11 @@ const AdminPanel = ({ onBack }) => {
         <button onClick={() => setActiveAdminTab('general')} style={activeAdminTab === 'general' ? subTabActive : subTab}>
           <Settings2 size={14} style={{ marginRight: '6px' }} /> Mode classement
         </button>
-        <button onClick={() => setActiveAdminTab('bingo')} style={activeAdminTab === 'bingo' ? subTabActive : subTab}>
-          <Dices size={14} style={{ marginRight: '6px' }} /> Mode bingo
-        </button>
+        {!isJunior && (
+  <button onClick={() => setActiveAdminTab('bingo')} style={activeAdminTab === 'bingo' ? subTabActive : subTab}>
+    <Dices size={14} style={{ marginRight: '6px' }} /> Mode bingo
+  </button>
+)}
       </div>
 
       {activeAdminTab === 'general' && (
@@ -383,7 +390,7 @@ const AdminPanel = ({ onBack }) => {
         </div>
       )}
 
-      {activeAdminTab === 'bingo' && (
+      {activeAdminTab === 'bingo' && !isJunior && (
         <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${t.border}`, borderRadius: '12px', padding: '16px', margin: '0 10px', boxSizing: 'border-box' }}>
           {/* Stats */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>

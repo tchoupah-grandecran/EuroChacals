@@ -124,7 +124,7 @@ const PredictionForm = ({ user, onOpenLeaderboard }) => {
     </p>
   );
 
-  // ── Dynamic style helpers ──
+  // ── selectStyle: NO backgroundImage here — arrow is injected via <style> tag below
   const selectStyle = {
     flex: 1, width: '100%',
     padding: '12px 40px 12px 14px',
@@ -136,10 +136,6 @@ const PredictionForm = ({ user, onOpenLeaderboard }) => {
     fontFamily: t.fontBody,
     fontSize: '0.95rem',
     appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
-    backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(t.accent)}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>")`,
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'right 12px center',
-    backgroundSize: '16px',
     cursor: 'pointer',
     transition: 'border-color 0.2s',
   };
@@ -149,11 +145,22 @@ const PredictionForm = ({ user, onOpenLeaderboard }) => {
 
   return (
     <div style={{ background: t.bgCard, padding: '25px', paddingBottom: '160px', borderRadius: '16px', border: `1px solid ${t.border}`, marginTop: '20px', fontFamily: t.fontBody }}>
-      <style>{`
+      {/*
+        key={t.accent} forces React to REPLACE this <style> node entirely on theme
+        change instead of patching it — this prevents the tiling-chevron glitch where
+        the old and new backgroundImage values coexist for one paint frame.
+      */}
+      <style key={t.accent}>{`
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
         select option { background-color: ${t.bgInput}; color: #fff; }
+        .esc-select {
+          background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(t.accent)}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>") !important;
+          background-repeat: no-repeat !important;
+          background-position: right 12px center !important;
+          background-size: 16px !important;
+        }
       `}</style>
 
       <h2 style={{ fontFamily: t.fontDisplay, fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', fontSize: '1.4rem', margin: '0 0 20px 0', color: t.accent, textAlign: 'center' }}>
@@ -175,7 +182,7 @@ const PredictionForm = ({ user, onOpenLeaderboard }) => {
           {top3Jury.map((current, idx) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
               <span style={{ fontFamily: t.fontDisplay, fontWeight: 500, color: t.accent, minWidth: '30px' }}>#{idx + 1}</span>
-              <select value={current || ''} onChange={(e) => handleNestedChange(top3Jury, setTop3Jury, idx, e.target.value)} style={selectStyle} disabled={isLocked}>
+              <select className="esc-select" value={current || ''} onChange={(e) => handleNestedChange(top3Jury, setTop3Jury, idx, e.target.value)} style={selectStyle} disabled={isLocked}>
                 <option value="">Sélectionne le pays n°{idx + 1}</option>
                 {countries.map(c => <option key={c.id} value={c.id}>{c.flag}  {c.name}</option>)}
               </select>
@@ -189,7 +196,7 @@ const PredictionForm = ({ user, onOpenLeaderboard }) => {
           {top3Public.map((current, idx) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
               <span style={{ fontFamily: t.fontDisplay, fontWeight: 500, color: t.accent, minWidth: '30px' }}>#{idx + 1}</span>
-              <select value={current || ''} onChange={(e) => handleNestedChange(top3Public, setTop3Public, idx, e.target.value)} style={selectStyle} disabled={isLocked}>
+              <select className="esc-select" value={current || ''} onChange={(e) => handleNestedChange(top3Public, setTop3Public, idx, e.target.value)} style={selectStyle} disabled={isLocked}>
                 <option value="">Sélectionne le pays n°{idx + 1}</option>
                 {countries.map(c => <option key={c.id} value={c.id}>{c.flag}  {c.name}</option>)}
               </select>
@@ -203,7 +210,7 @@ const PredictionForm = ({ user, onOpenLeaderboard }) => {
           {top5.map((current, idx) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
               <span style={{ fontFamily: t.fontDisplay, fontWeight: 500, color: t.accent, minWidth: '30px' }}>#{idx + 1}</span>
-              <select value={current || ''} onChange={(e) => handleTop5Change(idx, e.target.value)} style={selectStyle} disabled={isLocked}>
+              <select className="esc-select" value={current || ''} onChange={(e) => handleTop5Change(idx, e.target.value)} style={selectStyle} disabled={isLocked}>
                 <option value="">Sélectionne le pays n°{idx + 1}</option>
                 {countries.map(c => <option key={c.id} value={c.id}>{c.flag}  {c.name}</option>)}
               </select>
@@ -218,7 +225,7 @@ const PredictionForm = ({ user, onOpenLeaderboard }) => {
             <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '8px', color: t.textMuted }}>
               Quel pays obtiendra le plus de "12 points" des jurys ?
             </label>
-            <select value={mostTwelvePoints} onChange={(e) => setMostTwelvePoints(e.target.value)} style={selectStyle} disabled={isLocked}>
+            <select className="esc-select" value={mostTwelvePoints} onChange={(e) => setMostTwelvePoints(e.target.value)} style={selectStyle} disabled={isLocked}>
               <option value="">Choisis le favori des jurys</option>
               {countries.map(c => <option key={c.id} value={c.id}>{c.flag}  {c.name}</option>)}
             </select>
@@ -227,7 +234,7 @@ const PredictionForm = ({ user, onOpenLeaderboard }) => {
             <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '8px', color: t.textMuted }}>
               Dernier du classement général
             </label>
-            <select value={lastPlace} onChange={(e) => setLastPlace(e.target.value)} style={selectStyle} disabled={isLocked}>
+            <select className="esc-select" value={lastPlace} onChange={(e) => setLastPlace(e.target.value)} style={selectStyle} disabled={isLocked}>
               <option value="">Qui héritera de la lanterne rouge ?</option>
               {countries.map(c => <option key={c.id} value={c.id}>{c.flag}  {c.name}</option>)}
             </select>

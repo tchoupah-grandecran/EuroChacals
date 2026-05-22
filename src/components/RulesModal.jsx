@@ -4,6 +4,7 @@ import { useTheme } from '../ThemeContext';
 
 const RulesModal = ({ isOpen, onClose }) => {
   const { theme: t } = useTheme();
+  const isJunior = t.id === 'junior';
   if (!isOpen) return null;
 
   return (
@@ -82,8 +83,10 @@ const RulesModal = ({ isOpen, onClose }) => {
             </RuleRow>
           </Card>
 
-          <SectionTitle t={t} icon={<Dices size={14} />} label="Règles du bingo" />
-          <Card t={t}>
+          {!isJunior && (
+  <>
+    <SectionTitle t={t} icon={<Dices size={14} />} label="Règles du bingo" />
+    <Card t={t}>
             {[
               "Génère une grille de 9 cases aléatoires avant le début du show.",
               "Verrouille ta grille pour participer officiellement.",
@@ -95,7 +98,9 @@ const RulesModal = ({ isOpen, onClose }) => {
                 <span style={{ fontSize: '0.83rem', color: '#cbd5e0', lineHeight: 1.4 }}>{text}</span>
               </div>
             ))}
-          </Card>
+              </Card>
+  </>
+)}
 
         </div>
       </div>
