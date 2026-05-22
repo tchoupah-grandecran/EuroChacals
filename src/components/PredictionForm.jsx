@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase/firebaseConfig';
 import { collection, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
-
-// Import des icônes Lucide (avec l'ajout de Lock)
+import { useTheme } from '../ThemeContext';
 import { Trophy, Scale, Smartphone, Zap, Skull, Binary, Lock, AlertTriangle, CheckCircle, Send } from 'lucide-react';
 
 const PredictionForm = ({ user, onOpenLeaderboard }) => {
+  const { theme: t } = useTheme();
+
   const [countries, setCountries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -28,7 +29,7 @@ const PredictionForm = ({ user, onOpenLeaderboard }) => {
         const list = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         list.sort((a, b) => a.runningOrder - b.runningOrder);
         setCountries(list);
-        
+
         const resSnap = await getDoc(doc(db, 'results', 'live'));
         if (resSnap.exists() && resSnap.data().isVotesLocked !== undefined) {
           setIsLocked(resSnap.data().isVotesLocked);
@@ -86,13 +87,13 @@ const PredictionForm = ({ user, onOpenLeaderboard }) => {
     e.preventDefault();
     if (!user || !user.uid) return;
     if (isLocked) return;
-    
+
     if (top5.includes(null) || top3Jury.includes(null) || top3Public.includes(null) || !lastPlace || !mostTwelvePoints) {
-      setMessage("❌ Remplis l'ensemble des classements et bonus avant d'envoyer !");
+      setMessage("Remplis l'ensemble des classements et bonus avant d'envoyer !");
       return;
     }
     if (zeroPoints.length < 1) {
-      setMessage("❌ Choisis au moins 1 pays (et max 5) pour le pari 'Zéro Points'.");
+      setMessage("Choisis au moins 1 pays (et max 5) pour le pari 'Zéro Points'.");
       return;
     }
 
@@ -100,191 +101,207 @@ const PredictionForm = ({ user, onOpenLeaderboard }) => {
     setMessage('');
 
     try {
-      await setDoc(doc(db, 'predictions', user.uid, { merge: true }), {
+      await setDoc(doc(db, 'predictions', user.uid), {
         userId: user.uid,
         userName: user.displayName || "Anonyme",
-        top5,
-        lastPlace,
+        top5, lastPlace,
         winnerPublicPoints: parseInt(publicPoints, 10) || 0,
-        top3Jury,
-        top3Public,
-        mostTwelvePoints,
-        zeroPoints,
+        top3Jury, top3Public, mostTwelvePoints, zeroPoints,
         updatedAt: new Date()
-      });
-      setMessage("Pronostics complets enregistrés ! Que la bataille commence !");
+      }, { merge: true });
+      setMessage("ok");
     } catch (error) {
-      setMessage("❌ Erreur lors de la sauvegarde.");
+      console.error("Erreur sauvegarde:", error);
+      setMessage("err");
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <p style={{ textAlign: 'center', color: '#aaa', marginTop: '20px', fontFamily: "'Outfit', sans-serif" }}>Chargement de l'arène...</p>;
+  if (loading) return (
+    <p style={{ textAlign: 'center', color: t.textMuted, marginTop: '20px', fontFamily: t.fontBody }}>
+      Chargement de l'arène...
+    </p>
+  );
+
+  // ── Dynamic style helpers ──
+  const selectStyle = {
+    flex: 1, width: '100%',
+    padding: '12px 40px 12px 14px',
+    borderRadius: '10px',
+    background: t.bgInput,
+    color: t.textPrimary,
+    border: `1px solid ${t.borderLight}`,
+    outline: 'none',
+    fontFamily: t.fontBody,
+    fontSize: '0.95rem',
+    appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
+    backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(t.accent)}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>")`,
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'right 12px center',
+    backgroundSize: '16px',
+    cursor: 'pointer',
+    transition: 'border-color 0.2s',
+  };
+
+  const isError = message === 'err' || (message && message !== 'ok');
+  const isSuccess = message === 'ok';
 
   return (
-    <div style={styles.container}>
+    <div style={{ background: t.bgCard, padding: '25px', paddingBottom: '160px', borderRadius: '16px', border: `1px solid ${t.border}`, marginTop: '20px', fontFamily: t.fontBody }}>
       <style>{`
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { 
-          -webkit-appearance: none; 
-          margin: 0; 
-        }
-        input[type=number] {
-          -moz-appearance: textfield;
-        }
-        select option {
-          background-color: #1a1635;
-          color: #fff;
-        }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        select option { background-color: ${t.bgInput}; color: #fff; }
       `}</style>
 
-      <h2 style={styles.title}>Tes Pronostics</h2>
-      
+      <h2 style={{ fontFamily: t.fontDisplay, fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', fontSize: '1.4rem', margin: '0 0 20px 0', color: t.accent, textAlign: 'center' }}>
+        Tes Pronostics
+      </h2>
+
       {isLocked && (
-        <div style={styles.lockBanner}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(246,173,85,0.1)', color: '#f6ad55', border: '1px solid rgba(246,173,85,0.3)', padding: '12px', borderRadius: '8px', textAlign: 'center', fontWeight: 500, marginBottom: '20px', fontSize: '0.9rem' }}>
           <Lock size={16} style={{ marginRight: '8px' }} />
           Les pronostics sont clos pour cette édition. Déroulement de la soirée en cours !
         </div>
       )}
 
-      <form onSubmit={handleSubmit} style={styles.form}>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
         {/* TOP 3 JURY */}
-        <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>
-            <Scale size={18} color="#63b3ed" style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-            Top 3 du Jury
-          </h3>
+        <Section t={t}>
+          <SectionTitle t={t} icon={<Scale size={18} color="#63b3ed" />} label="Top 3 du Jury" />
           {top3Jury.map((current, idx) => (
-            <div key={idx} style={styles.row}>
-              <span style={styles.rankNumber}>#{idx + 1}</span>
-              <select value={current || ''} onChange={(e) => handleNestedChange(top3Jury, setTop3Jury, idx, e.target.value)} style={styles.select} disabled={isLocked}>
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
+              <span style={{ fontFamily: t.fontDisplay, fontWeight: 500, color: t.accent, minWidth: '30px' }}>#{idx + 1}</span>
+              <select value={current || ''} onChange={(e) => handleNestedChange(top3Jury, setTop3Jury, idx, e.target.value)} style={selectStyle} disabled={isLocked}>
                 <option value="">Sélectionne le pays n°{idx + 1}</option>
-                {countries.map(c => <option key={c.id} value={c.id}>{c.flag} &nbsp; {c.name}</option>)}
+                {countries.map(c => <option key={c.id} value={c.id}>{c.flag}  {c.name}</option>)}
               </select>
             </div>
           ))}
-        </div>
+        </Section>
 
         {/* TOP 3 PUBLIC */}
-        <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>
-            <Smartphone size={18} color="#f6ad55" style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-            Top 3 du Public
-          </h3>
+        <Section t={t}>
+          <SectionTitle t={t} icon={<Smartphone size={18} color="#f6ad55" />} label="Top 3 du Public" />
           {top3Public.map((current, idx) => (
-            <div key={idx} style={styles.row}>
-              <span style={styles.rankNumber}>#{idx + 1}</span>
-              <select value={current || ''} onChange={(e) => handleNestedChange(top3Public, setTop3Public, idx, e.target.value)} style={styles.select} disabled={isLocked}>
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
+              <span style={{ fontFamily: t.fontDisplay, fontWeight: 500, color: t.accent, minWidth: '30px' }}>#{idx + 1}</span>
+              <select value={current || ''} onChange={(e) => handleNestedChange(top3Public, setTop3Public, idx, e.target.value)} style={selectStyle} disabled={isLocked}>
                 <option value="">Sélectionne le pays n°{idx + 1}</option>
-                {countries.map(c => <option key={c.id} value={c.id}>{c.flag} &nbsp; {c.name}</option>)}
+                {countries.map(c => <option key={c.id} value={c.id}>{c.flag}  {c.name}</option>)}
               </select>
             </div>
           ))}
-        </div>
+        </Section>
 
         {/* TOP 5 GENERAL */}
-        <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>
-            <Trophy size={18} color="#ff007f" style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-            Top 5 Général
-          </h3>
+        <Section t={t}>
+          <SectionTitle t={t} icon={<Trophy size={18} color={t.accent} />} label="Top 5 Général" />
           {top5.map((current, idx) => (
-            <div key={idx} style={styles.row}>
-              <span style={styles.rankNumber}>#{idx + 1}</span>
-              <select value={current || ''} onChange={(e) => handleTop5Change(idx, e.target.value)} style={styles.select} disabled={isLocked}>
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
+              <span style={{ fontFamily: t.fontDisplay, fontWeight: 500, color: t.accent, minWidth: '30px' }}>#{idx + 1}</span>
+              <select value={current || ''} onChange={(e) => handleTop5Change(idx, e.target.value)} style={selectStyle} disabled={isLocked}>
                 <option value="">Sélectionne le pays n°{idx + 1}</option>
-                {countries.map(c => <option key={c.id} value={c.id}>{c.flag} &nbsp; {c.name}</option>)}
+                {countries.map(c => <option key={c.id} value={c.id}>{c.flag}  {c.name}</option>)}
               </select>
             </div>
           ))}
-        </div>
+        </Section>
 
-        {/* BONUS : MOST 12 POINTS & DERNIER */}
-        <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>
-            <Zap size={18} color="#ecc94b" style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-            Bonus & Spécialités
-          </h3>
+        {/* BONUS */}
+        <Section t={t}>
+          <SectionTitle t={t} icon={<Zap size={18} color="#ecc94b" />} label="Bonus & Spécialités" />
           <div style={{ marginBottom: '15px' }}>
-            <label style={styles.label}>Quel pays obtiendra le plus de "12 points" des jurys ?</label>
-            <select value={mostTwelvePoints} onChange={(e) => setMostTwelvePoints(e.target.value)} style={styles.select} disabled={isLocked}>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '8px', color: t.textMuted }}>
+              Quel pays obtiendra le plus de "12 points" des jurys ?
+            </label>
+            <select value={mostTwelvePoints} onChange={(e) => setMostTwelvePoints(e.target.value)} style={selectStyle} disabled={isLocked}>
               <option value="">Choisis le favori des jurys</option>
-              {countries.map(c => <option key={c.id} value={c.id}>{c.flag} &nbsp; {c.name}</option>)}
+              {countries.map(c => <option key={c.id} value={c.id}>{c.flag}  {c.name}</option>)}
             </select>
           </div>
           <div>
-            <label style={styles.label}>Dernier du classement général</label>
-            <select value={lastPlace} onChange={(e) => setLastPlace(e.target.value)} style={styles.select} disabled={isLocked}>
+            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '8px', color: t.textMuted }}>
+              Dernier du classement général
+            </label>
+            <select value={lastPlace} onChange={(e) => setLastPlace(e.target.value)} style={selectStyle} disabled={isLocked}>
               <option value="">Qui héritera de la lanterne rouge ?</option>
-              {countries.map(c => <option key={c.id} value={c.id}>{c.flag} &nbsp; {c.name}</option>)}
+              {countries.map(c => <option key={c.id} value={c.id}>{c.flag}  {c.name}</option>)}
             </select>
           </div>
-        </div>
+        </Section>
 
-        {/* PARI RISQUÉ : LES ZERO POINTS */}
-        <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>
-            <Skull size={18} color="#e53e3e" style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-            Qui aura 0 point ?
-          </h3>
-          <p style={styles.inputDesc}>Gagne +15 pts par bon choix, mais perds -5 pts si le pays récolte le moindre point !</p>
-          <div style={styles.gridCheckbox}>
+        {/* ZERO POINTS */}
+        <Section t={t}>
+          <SectionTitle t={t} icon={<Skull size={18} color="#e53e3e" />} label="Qui aura 0 point ?" />
+          <p style={{ fontSize: '0.8rem', color: t.textMuted, margin: '-8px 0 15px 0', lineHeight: '1.4' }}>
+            Gagne +15 pts par bon choix, mais perds -5 pts si le pays récolte le moindre point !
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '8px', maxHeight: '180px', overflowY: 'auto', padding: '6px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px' }}>
             {countries.map(c => {
               const isChecked = zeroPoints.includes(c.id);
               return (
-                <button type="button" key={c.id} onClick={() => handleZeroPointsToggle(c.id)} style={isChecked ? styles.checkedBtn : styles.uncheckedBtn} disabled={isLocked}>
-                  {c.flag} &nbsp; {c.name}
+                <button type="button" key={c.id} onClick={() => handleZeroPointsToggle(c.id)} disabled={isLocked}
+                  style={isChecked
+                    ? { background: t.accent, color: '#fff', border: `1px solid ${t.accent}`, padding: '8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontFamily: t.fontBody, fontWeight: 700, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', boxShadow: `0 0 8px ${t.accentGlow}` }
+                    : { background: t.bgInput, color: '#fff', border: `1px solid ${t.border}`, padding: '8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontFamily: t.fontBody, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+                  }>
+                  {c.flag}  {c.name}
                 </button>
               );
             })}
           </div>
-          <p style={{ fontSize: '0.85rem', color: '#ff007f', marginTop: '10px', fontWeight: 500 }}>Sélectionnés : {zeroPoints.length}/5</p>
-        </div>
+          <p style={{ fontSize: '0.85rem', color: t.accent, marginTop: '10px', fontWeight: 500 }}>
+            Sélectionnés : {zeroPoints.length}/5
+          </p>
+        </Section>
 
-        {/* POINTS PUBLIC DU GAGNANT */}
-        <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>
-            <Binary size={18} color="#4fd1c5" style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-            Points Public du vainqueur
-          </h3>
-          <label style={styles.label}>Devine le score exact envoyé par le télévote au grand gagnant :</label>
-          <input type="number" placeholder="Ex: 350" value={publicPoints} onChange={(e) => setPublicPoints(e.target.value)} style={styles.input} required disabled={isLocked} />
-        </div>
+        {/* POINTS PUBLIC VAINQUEUR */}
+        <Section t={t}>
+          <SectionTitle t={t} icon={<Binary size={18} color="#4fd1c5" />} label="Points Public du vainqueur" />
+          <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '8px', color: t.textMuted }}>
+            Devine le score exact envoyé par le télévote au grand gagnant :
+          </label>
+          <input type="number" placeholder="Ex: 350" value={publicPoints}
+            onChange={(e) => setPublicPoints(e.target.value)}
+            required disabled={isLocked}
+            style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', background: t.bgInput, color: t.textPrimary, border: `1px solid ${t.borderLight}`, boxSizing: 'border-box', fontFamily: t.fontBody, fontSize: '0.95rem', outline: 'none' }}
+          />
+        </Section>
 
-        {/* 👑 ZONE ACTIONS FLOTTANTE EN BAS (BOUTONS CÔTE À CÔTE) */}
-        <div style={styles.actionZone}>
-          {message && (
-            <p style={{ ...styles.message, color: message.startsWith('❌') ? '#fc8181' : '#68d391' }}>
-              {message.startsWith('❌') ? <AlertTriangle size={16} style={{ marginRight: '6px' }} /> : <CheckCircle size={16} style={{ marginRight: '6px' }} />}
-              {message}
+        {/* ACTION ZONE */}
+        <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '1126px', background: 'rgba(22,23,29,0.65)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', padding: '16px 20px', paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))', boxSizing: 'border-box', borderTop: `1px solid ${t.border}`, zIndex: 100, boxShadow: '0 -10px 30px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column' }}>
+          {message && message !== 'ok' && message !== 'err' && (
+            <p style={{ textAlign: 'center', fontWeight: 500, margin: '0 0 12px 0', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontFamily: t.fontBody, color: '#fc8181' }}>
+              <AlertTriangle size={16} /> {message}
             </p>
           )}
-
-          <div style={styles.btnGroup}>
-            {/* 1. Bouton ou Notice principale à gauche */}
+          {isSuccess && (
+            <p style={{ textAlign: 'center', fontWeight: 500, margin: '0 0 12px 0', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontFamily: t.fontBody, color: '#68d391' }}>
+              <CheckCircle size={16} /> Pronostics enregistrés ! Que la bataille commence !
+            </p>
+          )}
+          {isError && message === 'err' && (
+            <p style={{ textAlign: 'center', fontWeight: 500, margin: '0 0 12px 0', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontFamily: t.fontBody, color: '#fc8181' }}>
+              <AlertTriangle size={16} /> Erreur lors de la sauvegarde.
+            </p>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
             {isLocked ? (
-              <div style={styles.lockedNotice}>
-                <Lock size={16} style={{ marginRight: '6px' }} />
-                <span>Grilles figées et closes.</span>
+              <div style={{ flex: 1, height: '50px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', color: '#718096', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 600, fontSize: '1rem', fontFamily: t.fontBody }}>
+                <Lock size={16} style={{ marginRight: '6px' }} /> Grilles figées et closes.
               </div>
             ) : (
-              <button type="submit" disabled={saving} style={saving ? styles.btnDisabled : styles.btn}>
-  {saving 
-    ? 'Enregistrement...' 
-    : <><Send size={16} style={{ marginRight: '8px' }} />Valider mes pronostics</>
-  }
-</button>
+              <button type="submit" disabled={saving}
+                style={{ flex: 1, height: '50px', background: saving ? '#4a5568' : t.accent, color: '#fff', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 600, fontFamily: t.fontBody, cursor: saving ? 'not-allowed' : 'pointer', fontSize: '1rem', boxShadow: saving ? 'none' : `0 0 15px ${t.accentGlow}`, boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {saving ? 'Enregistrement...' : <><Send size={16} style={{ marginRight: '8px' }} />Valider mes pronostics</>}
+              </button>
             )}
-
-            {/* 2. Bouton Leaderboard à droite */}
-            <button 
-              type="button"
-              onClick={onOpenLeaderboard} 
-              style={styles.leaderboardBtn}
-              title="Classement Général"
-            >
+            <button type="button" onClick={onOpenLeaderboard} title="Classement Général"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px', width: '50px', height: '50px', background: t.bgCard, border: `1px solid ${t.borderLight}`, borderRadius: '10px', cursor: 'pointer', boxSizing: 'border-box' }}>
               <Trophy size={20} color="#ffd700" />
             </button>
           </div>
@@ -294,75 +311,17 @@ const PredictionForm = ({ user, onOpenLeaderboard }) => {
   );
 };
 
-const styles = {
-  container: { background: 'rgba(255, 255, 255, 0.04)', padding: '25px', paddingBottom: '160px', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.08)', marginTop: '20px', fontFamily: "'Outfit', sans-serif" },
-  title: { fontFamily: "'Fredoka', sans-serif", fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', fontSize: '1.4rem', margin: '0 0 20px 0', color: '#ff007f', textAlign: 'center' },
-  lockBanner: { display: 'flex', alignItems: 'center', center: 'center', justifyContent: 'center', background: 'rgba(246, 173, 85, 0.1)', color: '#f6ad55', border: '1px solid rgba(246, 173, 85, 0.3)', padding: '12px', borderRadius: '8px', textAlign: 'center', fontWeight: 500, marginBottom: '20px', fontSize: '0.9rem' },
-  form: { display: 'flex', flexDirection: 'column', gap: '20px' },
-  section: { background: 'rgba(0, 0, 0, 0.25)', padding: '18px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.04)' },
-  sectionTitle: { display: 'flex', alignItems: 'center', fontFamily: "'Fredoka', sans-serif", fontWeight: 400, letterSpacing: '0.04em', margin: '0 0 15px 0', fontSize: '1.05rem', color: '#cbd5e0', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '8px' },
-  row: { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' },
-  rankNumber: { fontFamily: "'Fredoka', sans-serif", fontWeight: 500, color: '#ff007f', minWidth: '30px' },
-  label: { display: 'block', fontSize: '0.85rem', marginBottom: '8px', color: '#a0aec0', fontWeight: 400 },
-  
-  select: { 
-    flex: 1, 
-    width: '100%', 
-    padding: '12px 40px 12px 14px', 
-    borderRadius: '10px', 
-    background: '#1a1635', 
-    color: '#fff', 
-    border: '1px solid rgba(255, 255, 255, 0.12)', 
-    outline: 'none', 
-    fontFamily: "'Outfit', sans-serif", 
-    fontSize: '0.95rem',
-    appearance: 'none',
-    WebkitAppearance: 'none',
-    MozAppearance: 'none',
-    backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ff007f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>")`,
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'right 12px center',
-    backgroundSize: '16px',
-    cursor: 'pointer',
-    transition: 'border-color 0.2s, box-shadow 0.2s'
-  },
-  
-  input: { width: '100%', padding: '12px 14px', borderRadius: '10px', background: '#1a1635', color: '#fff', border: '1px solid rgba(255, 255, 255, 0.12)', boxSizing: 'border-box', fontFamily: "'Outfit', sans-serif", fontSize: '0.95rem', outline: 'none' },
-  inputDesc: { fontSize: '0.8rem', color: '#a0aec0', margin: '-8px 0 15px 0', lineHeight: '1.4' },
-  gridCheckbox: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '8px', maxHeight: '180px', overflowY: 'auto', padding: '6px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px' },
-  uncheckedBtn: { background: '#1a1635', color: '#fff', border: '1px solid rgba(255,255,255,0.08)', padding: '8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontFamily: "'Outfit', sans-serif", textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  checkedBtn: { background: '#ff007f', color: '#fff', border: '1px solid #ff007f', padding: '8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontFamily: "'Outfit', sans-serif", fontWeight: 700, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', boxShadow: '0 0 8px rgba(255,0,127,0.4)' },
-  
-  actionZone: {
-    position: 'fixed',
-    bottom: 0,
-    left: '50%',
-    transform: 'translateX(-50%)',
-    width: '100%',
-    maxWidth: '1126px',
-    background: 'rgba(22, 23, 29, 0.65)',
-    backdropFilter: 'blur(16px)',
-    WebkitBackdropFilter: 'blur(16px)',
-    padding: '16px 20px',
-    paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
-    boxSizing: 'border-box',
-    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-    zIndex: 100,
-    boxShadow: '0 -10px 30px rgba(0,0,0,0.5)',
-    display: 'flex',
-    flexDirection: 'column'
-  },
-  btnGroup: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    width: '100%'
-  },
-  btn: { flex: 1, height: '50px', background: '#ff007f', color: '#fff', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 600, fontFamily: "'Outfit', sans-serif", cursor: 'pointer', fontSize: '1rem', boxShadow: '0 0 15px rgba(255,0,127,0.3)', transition: 'background 0.2s', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  btnDisabled: { flex: 1, height: '50px', background: '#4a5568', color: '#a0aec0', border: 'none', padding: '14px', borderRadius: '10px', cursor: 'not-allowed', fontFamily: "'Outfit', sans-serif", boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  lockedNotice: { flex: 1, height: '50px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255, 255, 255, 0.05)', color: '#718096', border: 'none', padding: '14px', borderRadius: '10px', textAlign: 'center', fontWeight: 600, fontSize: '1rem', fontFamily: "'Outfit', sans-serif" },
-  leaderboardBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px', width: '50px', height: '50px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.12)', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s', boxSizing: 'border-box' },
-  message: { textAlign: 'center', fontWeight: 500, margin: '0 0 12px 0', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontFamily: "'Outfit', sans-serif" }
-};
+const Section = ({ t, children }) => (
+  <div style={{ background: t.bgSection, padding: '18px', borderRadius: '12px', border: `1px solid ${t.border}` }}>
+    {children}
+  </div>
+);
+
+const SectionTitle = ({ t, icon, label }) => (
+  <h3 style={{ display: 'flex', alignItems: 'center', fontFamily: t.fontDisplay, fontWeight: 400, letterSpacing: '0.04em', margin: '0 0 15px 0', fontSize: '1.05rem', color: '#cbd5e0', borderBottom: `1px solid ${t.border}`, paddingBottom: '8px' }}>
+    <span style={{ marginRight: '8px', display: 'flex' }}>{icon}</span>
+    {label}
+  </h3>
+);
 
 export default PredictionForm;

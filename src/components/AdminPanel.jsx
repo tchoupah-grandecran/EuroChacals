@@ -2,11 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, setDoc, getDoc, deleteDoc, onSnapshot, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase/firebaseConfig';
 import { BINGO_ITEMS } from '../data/bingoItems';
-
-// Icônes Lucide
+import { useTheme } from '../ThemeContext';
 import { ArrowLeft, Calculator, Award, Lock, Unlock, Globe, RefreshCw, Plus, Minus, Settings2, Dices, ChevronDown, AlertTriangle, X } from 'lucide-react';
 
-// 🌍 Master liste des pays de l'Eurovision
 const MASTER_COUNTRIES = [
   { id: 'AL', name: 'Albanie', flag: '🇦🇱' }, { id: 'DE', name: 'Allemagne', flag: '🇩🇪' },
   { id: 'AM', name: 'Arménie', flag: '🇦🇲' }, { id: 'AU', name: 'Australie', flag: '🇦🇺' },
@@ -29,60 +27,34 @@ const MASTER_COUNTRIES = [
   { id: 'UA', name: 'Ukraine', flag: '🇺🇦' }
 ];
 
-// 🎨 Catégories Bingo
 const CATEGORIES = [
-  { id: 'perf',    label: '🎤 Performance',   color: '#63b3ed' },
-  { id: 'costume', label: '👗 Costumes',       color: '#f6ad55' },
-  { id: 'scene',   label: '🎬 Scénographie',   color: '#68d391' },
-  { id: 'vote',    label: '🏆 Vote',           color: '#fc8181' },
+  { id: 'perf',    label: 'Performance',  color: '#63b3ed' },
+  { id: 'costume', label: 'Costumes',     color: '#f6ad55' },
+  { id: 'scene',   label: 'Scénographie', color: '#68d391' },
+  { id: 'vote',    label: 'Vote',         color: '#fc8181' },
 ];
 
-// ─── COMPOSANT : SELECT PERSONNALISÉ ──────────────────────────────────────────
-const CustomSelect = ({ value, onChange, options, placeholder, disabled }) => {
+// ── CustomSelect ──────────────────────────────────────────────────────────────
+const CustomSelect = ({ value, onChange, options, placeholder, disabled, t }) => {
   const [isOpen, setIsOpen] = useState(false);
   const selected = options.find(o => o.value === value);
-
   return (
     <div style={{ position: 'relative', width: '100%' }}>
-      <button
-        type="button"
-        onClick={() => !disabled && setIsOpen(prev => !prev)}
-        style={{
-          ...selectStyles.trigger,
-          opacity: disabled ? 0.5 : 1,
-          cursor: disabled ? 'not-allowed' : 'pointer',
-        }}
-      >
-        <span style={selectStyles.triggerLabel}>
+      <button type="button" onClick={() => !disabled && setIsOpen(p => !p)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '11px 14px', background: t.bgInput, border: `1px solid ${t.borderLight}`, borderRadius: '8px', color: '#fff', fontFamily: t.fontBody, fontSize: '0.95rem', textAlign: 'left', boxSizing: 'border-box', opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}>
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {selected ? `${selected.flag} ${selected.label}` : placeholder}
         </span>
-        <ChevronDown
-          size={16}
-          color="#ff007f"
-          style={{ flexShrink: 0, transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
-        />
+        <ChevronDown size={16} color={t.accent} style={{ flexShrink: 0, transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
       </button>
-
       {isOpen && (
         <>
-          <div
-            style={{ position: 'fixed', inset: 0, zIndex: 998 }}
-            onClick={() => setIsOpen(false)}
-          />
-          <div style={selectStyles.dropdown}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 998 }} onClick={() => setIsOpen(false)} />
+          <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: '10px', zIndex: 999, maxHeight: '220px', overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', padding: '4px' }}>
             {options.map(opt => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => { onChange(opt.value); setIsOpen(false); }}
-                style={{
-                  ...selectStyles.option,
-                  background: opt.value === value ? 'rgba(255,0,127,0.15)' : 'transparent',
-                  color: opt.value === value ? '#ff007f' : '#fff',
-                }}
-              >
-                <span style={{ fontSize: '1rem' }}>{opt.flag}</span>
-                <span>{opt.label}</span>
+              <button key={opt.value} type="button" onClick={() => { onChange(opt.value); setIsOpen(false); }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontFamily: t.fontBody, fontSize: '0.9rem', textAlign: 'left', background: opt.value === value ? t.accentSoft : 'transparent', color: opt.value === value ? t.accent : '#fff' }}>
+                <span>{opt.flag}</span><span>{opt.label}</span>
               </button>
             ))}
           </div>
@@ -92,78 +64,22 @@ const CustomSelect = ({ value, onChange, options, placeholder, disabled }) => {
   );
 };
 
-const selectStyles = {
-  trigger: {
-    width: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '8px',
-    padding: '11px 14px',
-    background: '#15102a',
-    border: '1px solid rgba(255,255,255,0.15)',
-    borderRadius: '8px',
-    color: '#fff',
-    fontFamily: "'Outfit', sans-serif",
-    fontSize: '0.95rem',
-    textAlign: 'left',
-    boxSizing: 'border-box',
-  },
-  triggerLabel: {
-    flex: 1,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-    color: '#fff',
-  },
-  dropdown: {
-    position: 'absolute',
-    top: 'calc(100% + 4px)',
-    left: 0,
-    right: 0,
-    background: '#1a1635',
-    border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: '10px',
-    zIndex: 999,
-    maxHeight: '220px',
-    overflowY: 'auto',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-    padding: '4px',
-  },
-  option: {
-    width: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    padding: '9px 12px',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontFamily: "'Outfit', sans-serif",
-    fontSize: '0.9rem',
-    textAlign: 'left',
-    transition: 'background 0.15s',
-  },
-};
-
-// ─── COMPOSANT : MODALE DE CONFIRMATION ───────────────────────────────────────
-const ConfirmModal = ({ isOpen, onConfirm, onCancel }) => {
+// ── ConfirmModal ──────────────────────────────────────────────────────────────
+const ConfirmModal = ({ isOpen, onConfirm, onCancel, t }) => {
   if (!isOpen) return null;
   return (
-    <div style={confirmStyles.overlay} onClick={onCancel}>
-      <div style={confirmStyles.modal} onClick={e => e.stopPropagation()}>
-        <div style={confirmStyles.iconRow}>
-          <AlertTriangle size={28} color="#f6ad55" />
-        </div>
-        <h3 style={confirmStyles.title}>Réinitialiser le Bingo ?</h3>
-        <p style={confirmStyles.body}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 4000, background: 'rgba(10,8,22,0.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onCancel}>
+      <div style={{ background: t.bgModal, border: '1px solid rgba(246,173,85,0.25)', borderRadius: '16px', padding: '28px 24px 20px', width: '100%', maxWidth: '320px', textAlign: 'center', boxShadow: '0 15px 35px rgba(0,0,0,0.6)', fontFamily: t.fontBody }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}><AlertTriangle size={28} color="#f6ad55" /></div>
+        <h3 style={{ fontFamily: t.fontDisplay, margin: '0 0 10px 0', fontSize: '1.2rem', color: '#fff', fontWeight: 500 }}>Réinitialiser le Bingo ?</h3>
+        <p style={{ fontSize: '0.85rem', color: '#a0aec0', lineHeight: '1.5', margin: '0 0 20px 0' }}>
           Toutes les validations seront effacées et les grilles des joueurs déverrouillées. Cette action est irréversible.
         </p>
-        <div style={confirmStyles.actions}>
-          <button onClick={onCancel} style={confirmStyles.cancelBtn}>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={onCancel} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px', background: 'rgba(255,255,255,0.05)', border: `1px solid ${t.border}`, borderRadius: '8px', color: '#cbd5e0', fontFamily: t.fontBody, fontSize: '0.9rem', cursor: 'pointer', fontWeight: 500 }}>
             <X size={15} style={{ marginRight: '6px' }} /> Annuler
           </button>
-          <button onClick={onConfirm} style={confirmStyles.confirmBtn}>
+          <button onClick={onConfirm} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px', background: 'rgba(229,62,62,0.15)', border: '1px solid rgba(229,62,62,0.4)', borderRadius: '8px', color: '#fc8181', fontFamily: t.fontBody, fontSize: '0.9rem', cursor: 'pointer', fontWeight: 600 }}>
             <RefreshCw size={15} style={{ marginRight: '6px' }} /> Réinitialiser
           </button>
         </div>
@@ -172,387 +88,152 @@ const ConfirmModal = ({ isOpen, onConfirm, onCancel }) => {
   );
 };
 
-const confirmStyles = {
-  overlay: {
-    position: 'fixed', inset: 0, zIndex: 4000,
-    background: 'rgba(10, 8, 22, 0.8)',
-    backdropFilter: 'blur(6px)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: '20px',
-  },
-  modal: {
-    background: '#16132d',
-    border: '1px solid rgba(246,173,85,0.25)',
-    borderRadius: '16px',
-    padding: '28px 24px 20px',
-    width: '100%',
-    maxWidth: '320px',
-    textAlign: 'center',
-    boxShadow: '0 15px 35px rgba(0,0,0,0.6)',
-    fontFamily: "'Outfit', sans-serif",
-  },
-  iconRow: {
-    display: 'flex', justifyContent: 'center', marginBottom: '14px',
-  },
-  title: {
-    fontFamily: "'Fredoka', sans-serif",
-    margin: '0 0 10px 0',
-    fontSize: '1.2rem',
-    color: '#fff',
-    fontWeight: 500,
-  },
-  body: {
-    fontSize: '0.85rem',
-    color: '#a0aec0',
-    lineHeight: '1.5',
-    margin: '0 0 20px 0',
-  },
-  actions: {
-    display: 'flex',
-    gap: '10px',
-  },
-  cancelBtn: {
-    flex: 1,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: '10px',
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: '8px',
-    color: '#cbd5e0',
-    fontFamily: "'Outfit', sans-serif",
-    fontSize: '0.9rem',
-    cursor: 'pointer',
-    fontWeight: 500,
-  },
-  confirmBtn: {
-    flex: 1,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: '10px',
-    background: 'rgba(229,62,62,0.15)',
-    border: '1px solid rgba(229,62,62,0.4)',
-    borderRadius: '8px',
-    color: '#fc8181',
-    fontFamily: "'Outfit', sans-serif",
-    fontSize: '0.9rem',
-    cursor: 'pointer',
-    fontWeight: 600,
-  },
-};
-
-// ─── COMPOSANT PRINCIPAL ──────────────────────────────────────────────────────
+// ── AdminPanel ────────────────────────────────────────────────────────────────
 const AdminPanel = ({ onBack }) => {
+  const { theme: t } = useTheme();
   const [activeAdminTab, setActiveAdminTab] = useState('general');
-
-  // ─── ÉTATS CONSOLE GÉNÉRALE / PRONOS ───────────────────────────────
-  const [countryScores, setCountryScores] = useState(
-    MASTER_COUNTRIES.map(c => ({ ...c, jury: 0, public: 0, total: 0 }))
-  );
+  const [countryScores, setCountryScores]   = useState(MASTER_COUNTRIES.map(c => ({ ...c, jury: 0, public: 0, total: 0 })));
   const [activeFinalistIds, setActiveFinalistIds] = useState([]);
-  const [mostTwelvePoints, setMostTwelvePoints] = useState('');
-  const [isVotesLocked, setIsVotesLocked] = useState(false);
-  const [calculating, setCalculating] = useState(false);
+  const [mostTwelvePoints, setMostTwelvePoints]   = useState('');
+  const [isVotesLocked, setIsVotesLocked]   = useState(false);
+  const [calculating, setCalculating]       = useState(false);
   const [syncingCountries, setSyncingCountries] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
-
-  // ─── ÉTATS CONSOLE BINGO ───────────────────────────────────────────
-  const [validated, setValidated] = useState({});
-  const [resetting, setResetting] = useState(false);
+  const [statusMessage, setStatusMessage]   = useState('');
+  const [validated, setValidated]           = useState({});
+  const [resetting, setResetting]           = useState(false);
   const [activeCategory, setActiveCategory] = useState('perf');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-  // ─── EFFECTS CONSOLE GÉNÉRALE ──────────────────────────────────────
   useEffect(() => {
     const loadAdminData = async () => {
       try {
         const countriesSnap = await getDocs(collection(db, 'countries'));
-        const activeIds = countriesSnap.docs.map(d => d.id);
-        setActiveFinalistIds(activeIds);
-
+        setActiveFinalistIds(countriesSnap.docs.map(d => d.id));
         const docSnap = await getDoc(doc(db, 'results', 'officialRawScores'));
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data.scores) setCountryScores(data.scores);
           if (data.mostTwelvePoints) setMostTwelvePoints(data.mostTwelvePoints);
         }
-
         const liveSnap = await getDoc(doc(db, 'results', 'live'));
-        if (liveSnap.exists() && liveSnap.data().isVotesLocked !== undefined) {
-          setIsVotesLocked(liveSnap.data().isVotesLocked);
-        }
-      } catch (err) {
-        console.error("Erreur d'initialisation des données admin", err);
-      }
+        if (liveSnap.exists() && liveSnap.data().isVotesLocked !== undefined) setIsVotesLocked(liveSnap.data().isVotesLocked);
+      } catch (err) { console.error("Erreur init admin", err); }
     };
     loadAdminData();
   }, []);
 
-  // ─── EFFECTS BINGO ─────────────────────────────────────────────────
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'bingo_state', 'global'), (snap) => {
-      if (snap.exists()) setValidated(snap.data().validated || {});
-      else setValidated({});
+      setValidated(snap.exists() ? (snap.data().validated || {}) : {});
     });
     return () => unsub();
   }, []);
 
-  // ─── LOGIQUE CONSOLE GÉNÉRALE ──────────────────────────────────────
-  const handleToggleFinalist = (id) => {
-    setActiveFinalistIds(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  };
+  const handleToggleFinalist = (id) => setActiveFinalistIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
 
   const handleSyncCountriesToFirebase = async () => {
-    if (activeFinalistIds.length === 0) {
-      setStatusMessage("Impossible de synchroniser une finale sans aucun pays !");
-      return;
-    }
+    if (activeFinalistIds.length === 0) { setStatusMessage("Impossible de synchroniser sans aucun pays !"); return; }
     setSyncingCountries(true);
-    setStatusMessage("Nettoyage et déploiement de la liste des finalistes...");
-
+    setStatusMessage("Déploiement de la liste des finalistes...");
     try {
-      const countriesSnap = await getDocs(collection(db, 'countries'));
-      const deletePromises = countriesSnap.docs.map(d => deleteDoc(d.ref));
-      await Promise.all(deletePromises);
-
-      const selectedMasterList = MASTER_COUNTRIES.filter(c => activeFinalistIds.includes(c.id));
-      
-      const writePromises = selectedMasterList.map((country, index) => {
-        return setDoc(doc(db, 'countries', country.id), {
-          name: country.name,
-          flag: country.flag,
-          runningOrder: index + 1
-        });
-      });
-      await Promise.all(writePromises);
-
+      const snap = await getDocs(collection(db, 'countries'));
+      await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+      const selectedList = MASTER_COUNTRIES.filter(c => activeFinalistIds.includes(c.id));
+      await Promise.all(selectedList.map((country, index) => setDoc(doc(db, 'countries', country.id), { name: country.name, flag: country.flag, runningOrder: index + 1 })));
       setCountryScores(prev => {
-        const currentScores = [...prev];
-        selectedMasterList.forEach(sm => {
-          if (!currentScores.some(cs => cs.id === sm.id)) {
-            currentScores.push({ ...sm, jury: 0, public: 0, total: 0 });
-          }
-        });
-        return currentScores;
+        const cur = [...prev];
+        selectedList.forEach(sm => { if (!cur.some(cs => cs.id === sm.id)) cur.push({ ...sm, jury: 0, public: 0, total: 0 }); });
+        return cur;
       });
-
-      setStatusMessage("Liste des finalistes synchronisée et déployée pour les joueurs !");
+      setStatusMessage("Liste synchronisée !");
       setTimeout(() => setStatusMessage(''), 4000);
-    } catch (err) {
-      console.error(err);
-      setStatusMessage("Erreur lors de la synchronisation de la liste.");
-    } finally {
-      setSyncingCountries(false);
-    }
+    } catch (err) { setStatusMessage("Erreur lors de la synchronisation."); }
+    finally { setSyncingCountries(false); }
   };
 
   const handleToggleLock = async () => {
-    const nextLockState = !isVotesLocked;
+    const next = !isVotesLocked;
     try {
-      await setDoc(doc(db, 'results', 'live'), { isVotesLocked: nextLockState }, { merge: true });
-      setIsVotesLocked(nextLockState);
-      setStatusMessage(nextLockState ? "Pronostics et classements persos désormais CLOS !" : "Pronostics et classements persos OUVERTS !");
+      await setDoc(doc(db, 'results', 'live'), { isVotesLocked: next }, { merge: true });
+      setIsVotesLocked(next);
+      setStatusMessage(next ? "Pronostics désormais CLOS !" : "Pronostics OUVERTS !");
       setTimeout(() => setStatusMessage(''), 4000);
-    } catch (err) {
-      console.error(err);
-      setStatusMessage("Erreur lors de la modification du verrouillage.");
-    }
+    } catch (err) { setStatusMessage("Erreur lors du verrouillage."); }
   };
 
   const handleScoreChange = (id, field, value) => {
     const numericValue = parseInt(value, 10) || 0;
-    setCountryScores(prev => 
-      prev.map(c => {
-        if (c.id === id) {
-          const updatedCountry = { ...c, [field]: numericValue };
-          updatedCountry.total = updatedCountry.jury + updatedCountry.public;
-          return updatedCountry;
-        }
-        return c;
-      })
-    );
+    setCountryScores(prev => prev.map(c => {
+      if (c.id !== id) return c;
+      const updated = { ...c, [field]: numericValue };
+      updated.total = updated.jury + updated.public;
+      return updated;
+    }));
   };
 
   const handleCalculateScores = async () => {
-    if (!mostTwelvePoints) {
-      setStatusMessage("Sélectionne d'abord le pays qui a obtenu le plus de 12 points.");
-      return;
-    }
-
+    if (!mostTwelvePoints) { setStatusMessage("Sélectionne d'abord le pays avec le plus de 12 points."); return; }
     setCalculating(true);
-    setStatusMessage('Génération de la matrice et calcul des scores...');
-
+    setStatusMessage('Calcul des scores...');
     try {
-      const activeScores = countryScores.filter(c => activeFinalistIds.includes(c.id));
+      const activeScores    = countryScores.filter(c => activeFinalistIds.includes(c.id));
       const sortedCountries = [...activeScores].sort((a, b) => b.total - a.total);
-      const officialIds = sortedCountries.map(c => c.id);
-
-      const officialJuryIds = [...activeScores].sort((a, b) => b.jury - a.jury).map(c => c.id);
+      const officialIds     = sortedCountries.map(c => c.id);
+      const officialJuryIds   = [...activeScores].sort((a, b) => b.jury   - a.jury).map(c => c.id);
       const officialPublicIds = [...activeScores].sort((a, b) => b.public - a.public).map(c => c.id);
-      
       await setDoc(doc(db, 'results', 'officialRawScores'), { scores: countryScores, mostTwelvePoints });
       await setDoc(doc(db, 'results', 'official'), { rank: officialIds });
-
       const officialTop5 = officialIds.slice(0, 5);
       const officialLastPlaceId = officialIds[officialIds.length - 1];
-
       const querySnapshot = await getDocs(collection(db, 'predictions'));
-      
-      const updatePromises = querySnapshot.docs.map(async (userDoc) => {
+      await Promise.all(querySnapshot.docs.map(async (userDoc) => {
         const data = userDoc.data();
         const userId = userDoc.id;
-        let userFinalScore = 0;
-
-        // --- 1. Top 5 Général ---
-        if (data.top5 && Array.isArray(data.top5)) {
-          data.top5.forEach((id, idx) => {
-            if (!id) return;
-            if (idx === 0 && id === officialIds[0]) {
-              userFinalScore += 5; // Vainqueur exact !
-            } else if (officialTop5.includes(id)) {
-              userFinalScore += 2; // Dans le Top 5
-            }
-          });
-        }
-
-        // --- 2. Top 3 Jury ---
-        if (data.top3Jury && Array.isArray(data.top3Jury)) {
-          const officialTop3Jury = officialJuryIds.slice(0, 3);
-          data.top3Jury.forEach((id, idx) => {
-            if (!id) return;
-            // ALIGNEMENT : Rang exact uniquement pour la 1ère place (idx 0)
-            if (idx === 0 && id === officialJuryIds[0]) {
-              userFinalScore += 3;
-            } else if (officialTop3Jury.includes(id)) {
-              userFinalScore += 1;
-            }
-          });
-        }
-
-        // --- 3. Top 3 Public ---
-        if (data.top3Public && Array.isArray(data.top3Public)) {
-          const officialTop3Public = officialPublicIds.slice(0, 3);
-          data.top3Public.forEach((id, idx) => {
-            if (!id) return;
-            // ALIGNEMENT : Rang exact uniquement pour la 1ère place (idx 0)
-            if (idx === 0 && id === officialPublicIds[0]) {
-              userFinalScore += 3;
-            } else if (officialTop3Public.includes(id)) {
-              userFinalScore += 1;
-            }
-          });
-        }
-
-        // --- 4. Statistiques & Bonus ---
-        if (data.mostTwelvePoints && data.mostTwelvePoints === mostTwelvePoints) userFinalScore += 5;
-        if (data.lastPlace && data.lastPlace === officialLastPlaceId) userFinalScore += 7;
-
-        // --- 5. Pari Zéro Point ---
-        if (data.zeroPoints && Array.isArray(data.zeroPoints)) {
-          data.zeroPoints.forEach(countryId => {
-            const actualData = activeScores.find(c => c.id === countryId);
-            if (actualData) {
-              if (actualData.total === 0) userFinalScore += 15;
-              else userFinalScore -= 5;
-            }
-          });
-        }
-
-        // --- 6. Points Public Vainqueur ---
-        const absoluteWinner = activeScores.find(c => c.id === officialIds[0]);
-        if (absoluteWinner && data.winnerPublicPoints !== undefined) {
-          const delta = Math.abs(data.winnerPublicPoints - absoluteWinner.public);
-          if (delta === 0) userFinalScore += 100;
-          else if (delta <= 20) userFinalScore += 50;
-          else if (delta <= 50) userFinalScore += 20;
-          else if (delta <= 75) userFinalScore += 10;
-          else if (delta <= 150) userFinalScore += 5;
-          else if (delta <= 200) userFinalScore += 1;
-        }
-
-        // --- 7. Bonus Précision & Malus Inversion Absolue ---
-        if (data.myPersonalRank && Array.isArray(data.myPersonalRank)) {
-          // Bonus de comparaison (Rang exact)
-          data.myPersonalRank.forEach((countryId, index) => {
-            if (index < officialIds.length && countryId === officialIds[index]) {
-              userFinalScore += 2;
-            }
-          });
-
-          // Malus d'Inversion Absolue
+        let score = 0;
+        if (data.top5) data.top5.forEach((id, idx) => { if (!id) return; if (idx === 0 && id === officialIds[0]) score += 5; else if (officialTop5.includes(id)) score += 2; });
+        if (data.top3Jury) { const top3J = officialJuryIds.slice(0,3); data.top3Jury.forEach((id, idx) => { if (!id) return; if (idx === 0 && id === officialJuryIds[0]) score += 3; else if (top3J.includes(id)) score += 1; }); }
+        if (data.top3Public) { const top3P = officialPublicIds.slice(0,3); data.top3Public.forEach((id, idx) => { if (!id) return; if (idx === 0 && id === officialPublicIds[0]) score += 3; else if (top3P.includes(id)) score += 1; }); }
+        if (data.mostTwelvePoints === mostTwelvePoints) score += 5;
+        if (data.lastPlace === officialLastPlaceId) score += 7;
+        if (data.zeroPoints) data.zeroPoints.forEach(cid => { const a = activeScores.find(c => c.id === cid); if (a) { if (a.total === 0) score += 15; else score -= 5; } });
+        const winner = activeScores.find(c => c.id === officialIds[0]);
+        if (winner && data.winnerPublicPoints !== undefined) { const delta = Math.abs(data.winnerPublicPoints - winner.public); if (delta === 0) score += 100; else if (delta <= 20) score += 50; else if (delta <= 50) score += 20; else if (delta <= 75) score += 10; else if (delta <= 150) score += 5; else if (delta <= 200) score += 1; }
+        if (data.myPersonalRank) {
           const userBottom5 = data.myPersonalRank.slice(-5);
-          
-          // ALIGNEMENT : Seule la vérification du favori coulé dans le bottom 5 du joueur est gardée (comme dans le scorecalculator)
-          officialTop5.forEach((favId) => {
-            if (userBottom5.includes(favId)) userFinalScore -= 2;
-          });
+          data.myPersonalRank.forEach((cid, idx) => { if (idx < officialIds.length && cid === officialIds[idx]) score += 2; });
+          officialTop5.forEach(fav => { if (userBottom5.includes(fav)) score -= 2; });
         }
-
-        // --- SAUVEGARDE ---
-        await setDoc(doc(db, 'leaderboard', userId), {
-          displayName: data.userName || data.userDisplayName || "Anonyme",
-          score: userFinalScore,
-          updatedAt: new Date(),
-          predictions: {
-            top5: data.top5 || [],
-            top3Jury: data.top3Jury || [],
-            top3Public: data.top3Public || [],
-            mostTwelvePoints: data.mostTwelvePoints || '',
-            lastPlace: data.lastPlace || '',
-            winnerPublicPoints: data.winnerPublicPoints !== undefined ? data.winnerPublicPoints : null,
-            zeroPoints: data.zeroPoints || [],
-            myPersonalRank: data.myPersonalRank || [] // Ajouté pour cohérence
-          }
-        });
-      });
-
-      await Promise.all(updatePromises);
-      setStatusMessage("Tous les scores de l'arène ont été mis à jour avec succès !");
-    } catch (err) {
-      console.error(err);
-      setStatusMessage('Erreur critique durant le processus de calcul.');
-    } finally {
-      setCalculating(false);
-    }
+        await setDoc(doc(db, 'leaderboard', userId), { displayName: data.userName || data.userDisplayName || "Anonyme", score, updatedAt: new Date(), predictions: { top5: data.top5||[], top3Jury: data.top3Jury||[], top3Public: data.top3Public||[], mostTwelvePoints: data.mostTwelvePoints||'', lastPlace: data.lastPlace||'', winnerPublicPoints: data.winnerPublicPoints ?? null, zeroPoints: data.zeroPoints||[], myPersonalRank: data.myPersonalRank||[] } });
+      }));
+      setStatusMessage("Scores publiés avec succès !");
+    } catch (err) { console.error(err); setStatusMessage('Erreur critique durant le calcul.'); }
+    finally { setCalculating(false); }
   };
 
-  // ─── LOGIQUE CONSOLE BINGO ─────────────────────────────────────────
   const handleBingoIncrement = async (itemId) => {
-    const current = validated[itemId] || 0;
-    const next = current + 1;
-    const newValidated = { ...validated, [itemId]: next };
-    setValidated(newValidated);
-    await setDoc(doc(db, 'bingo_state', 'global'), { validated: newValidated, updatedAt: new Date() }, { merge: true });
-    await checkAllGridsForBingo(newValidated);
+    const next = (validated[itemId] || 0) + 1;
+    const newV = { ...validated, [itemId]: next };
+    setValidated(newV);
+    await setDoc(doc(db, 'bingo_state', 'global'), { validated: newV, updatedAt: new Date() }, { merge: true });
+    try {
+      const gridsSnap = await getDocs(collection(db, 'bingo_grids'));
+      const batch = writeBatch(db);
+      let hasWrites = false;
+      gridsSnap.docs.forEach(gridDoc => {
+        const d = gridDoc.data();
+        if (!d.locked || d.completedAt) return;
+        if (d.grid.every(id => (newV[id] || 0) >= 1)) { batch.set(gridDoc.ref, { completedAt: new Date() }, { merge: true }); hasWrites = true; }
+      });
+      if (hasWrites) await batch.commit();
+    } catch (e) { console.error(e); }
   };
 
   const handleBingoDecrement = async (itemId) => {
     const current = validated[itemId] || 0;
     if (current <= 0) return;
-    const next = current - 1;
-    const newValidated = { ...validated, [itemId]: next };
-    setValidated(newValidated);
-    await setDoc(doc(db, 'bingo_state', 'global'), { validated: newValidated, updatedAt: new Date() }, { merge: true });
-  };
-
-  const checkAllGridsForBingo = async (currentValidated) => {
-    try {
-      const gridsSnap = await getDocs(collection(db, 'bingo_grids'));
-      const batch = writeBatch(db);
-      let batchHasWrites = false;
-      gridsSnap.docs.forEach(gridDoc => {
-        const data = gridDoc.data();
-        if (!data.locked || data.completedAt) return;
-        const allHit = data.grid.every(id => (currentValidated[id] || 0) >= 1);
-        if (allHit) {
-          batch.set(gridDoc.ref, { completedAt: new Date() }, { merge: true });
-          batchHasWrites = true;
-        }
-      });
-      if (batchHasWrites) await batch.commit();
-    } catch (e) {
-      console.error('Error checking bingo completions:', e);
-    }
+    const newV = { ...validated, [itemId]: current - 1 };
+    setValidated(newV);
+    await setDoc(doc(db, 'bingo_state', 'global'), { validated: newV, updatedAt: new Date() }, { merge: true });
   };
 
   const handleBingoResetConfirmed = async () => {
@@ -560,173 +241,117 @@ const AdminPanel = ({ onBack }) => {
     setResetting(true);
     try {
       await setDoc(doc(db, 'bingo_state', 'global'), { validated: {}, updatedAt: new Date() });
-      const gridsSnap = await getDocs(collection(db, 'bingo_grids'));
+      const snap = await getDocs(collection(db, 'bingo_grids'));
       const batch = writeBatch(db);
-      gridsSnap.docs.forEach(d => {
-        batch.set(d.ref, { locked: false, completedAt: null, grid: d.data().grid }, { merge: true });
-      });
+      snap.docs.forEach(d => batch.set(d.ref, { locked: false, completedAt: null, grid: d.data().grid }, { merge: true }));
       await batch.commit();
       setValidated({});
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setResetting(false);
-    }
+    } catch (e) { console.error(e); } finally { setResetting(false); }
   };
 
-  // ─── DONNÉES CALCULÉES ─────────────────────────────────────────────
-  const visibleCountryScores = countryScores
-    .filter(c => activeFinalistIds.includes(c.id))
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  const filteredBingoItems = BINGO_ITEMS.filter(i => i.category === activeCategory);
-  const totalBingoValidated = Object.values(validated).filter(v => v > 0).length;
+  const visibleCountryScores = countryScores.filter(c => activeFinalistIds.includes(c.id)).sort((a, b) => a.name.localeCompare(b.name));
+  const filteredBingoItems   = BINGO_ITEMS.filter(i => i.category === activeCategory);
+  const totalBingoValidated  = Object.values(validated).filter(v => v > 0).length;
   const totalBingoOccurrences = Object.values(validated).reduce((a, b) => a + b, 0);
+  const twelvePointsOptions  = MASTER_COUNTRIES.filter(c => activeFinalistIds.includes(c.id)).map(c => ({ value: c.id, label: c.name, flag: c.flag }));
 
-  // Options pour le CustomSelect des 12 points
-  const twelvePointsOptions = MASTER_COUNTRIES
-    .filter(c => activeFinalistIds.includes(c.id))
-    .map(c => ({ value: c.id, label: c.name, flag: c.flag }));
+  const subTabActive = { flex: 1, padding: '10px 0', background: t.accent, border: 'none', color: '#fff', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, fontFamily: t.fontBody, boxShadow: `0 2px 10px ${t.accentGlow}`, display: 'flex', alignItems: 'center', justifyContent: 'center' };
+  const subTab       = { flex: 1, padding: '10px 0', background: 'transparent', border: 'none', color: t.textMuted, borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, fontFamily: t.fontBody, display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
   return (
-    <div style={styles.container}>
-      <style>{`
-        input::-webkit-outer-spin-button,
-        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        input[type=number] { -moz-appearance: textfield; }
-      `}</style>
+    <div style={{ padding: '10px 0 20px', color: '#fff', fontFamily: t.fontBody, boxSizing: 'border-box' }}>
+      <style>{`input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}input[type=number]{-moz-appearance:textfield;}`}</style>
 
-      {/* MODALE CONFIRMATION RESET BINGO */}
-      <ConfirmModal
-        isOpen={showResetConfirm}
-        onConfirm={handleBingoResetConfirmed}
-        onCancel={() => setShowResetConfirm(false)}
-      />
+      <ConfirmModal isOpen={showResetConfirm} onConfirm={handleBingoResetConfirmed} onCancel={() => setShowResetConfirm(false)} t={t} />
 
-      {/* EN-TÊTE PRINCIPAL */}
-      <header style={styles.header}>
-        <button onClick={onBack} style={styles.backBtn}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px', padding: '0 10px' }}>
+        <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.05)', border: `1px solid ${t.border}`, color: '#fff', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: t.fontBody }}>
           <ArrowLeft size={16} /> Retour
         </button>
-        <h2 style={styles.title}>Console Admin</h2>
+        <h2 style={{ fontFamily: t.fontDisplay, margin: 0, fontSize: '1.3rem', color: t.accent }}>Console Admin</h2>
       </header>
 
-      {/* SÉLECTEUR DE SOUS-ONGLETS ADMIN */}
-      <div style={styles.subTabContainer}>
-        <button
-          onClick={() => setActiveAdminTab('general')}
-          style={activeAdminTab === 'general' ? styles.subTabActive : styles.subTab}
-        >
-          <Settings2 size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-          Mode classement
+      <div style={{ display: 'flex', background: 'rgba(0,0,0,0.25)', padding: '4px', borderRadius: '10px', marginBottom: '20px', border: `1px solid ${t.border}`, margin: '0 10px 20px 10px' }}>
+        <button onClick={() => setActiveAdminTab('general')} style={activeAdminTab === 'general' ? subTabActive : subTab}>
+          <Settings2 size={14} style={{ marginRight: '6px' }} /> Mode classement
         </button>
-        <button
-          onClick={() => setActiveAdminTab('bingo')}
-          style={activeAdminTab === 'bingo' ? styles.subTabActive : styles.subTab}
-        >
-          <Dices size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-          Mode bingo
+        <button onClick={() => setActiveAdminTab('bingo')} style={activeAdminTab === 'bingo' ? subTabActive : subTab}>
+          <Dices size={14} style={{ marginRight: '6px' }} /> Mode bingo
         </button>
       </div>
 
-      {/* ─── VUE 1 : ADMIN GÉNÉRALE & PRONOS ─── */}
       {activeAdminTab === 'general' && (
         <div>
-          <div style={{
-            ...styles.lockCard,
-            backgroundColor: isVotesLocked ? 'rgba(229, 62, 62, 0.1)' : 'rgba(72, 187, 120, 0.1)',
-            borderColor: isVotesLocked ? 'rgba(229, 62, 62, 0.3)' : 'rgba(72, 187, 120, 0.3)'
-          }}>
+          {/* Lock card */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderRadius: '12px', border: '1px solid', marginBottom: '20px', margin: '0 10px 20px 10px', boxSizing: 'border-box', backgroundColor: isVotesLocked ? 'rgba(229,62,62,0.1)' : 'rgba(72,187,120,0.1)', borderColor: isVotesLocked ? 'rgba(229,62,62,0.3)' : 'rgba(72,187,120,0.3)' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={styles.lockCardTitle}>Statut de la session</span>
-              <span style={{ ...styles.lockCardStatus, color: isVotesLocked ? '#fc8181' : '#68d391' }}>
-                {isVotesLocked ? 'Fermée' : 'Ouverte'}
-              </span>
+              <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#cbd5e0', letterSpacing: '0.04em' }}>Statut de la session</span>
+              <span style={{ fontSize: '0.9rem', fontWeight: 600, color: isVotesLocked ? '#fc8181' : '#68d391' }}>{isVotesLocked ? 'Fermée' : 'Ouverte'}</span>
             </div>
-            <button onClick={handleToggleLock} style={{ ...styles.lockBtn, backgroundColor: isVotesLocked ? '#48bb78' : '#e53e3e' }}>
+            <button onClick={handleToggleLock} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', fontFamily: t.fontBody, fontWeight: 600, fontSize: '0.85rem', backgroundColor: isVotesLocked ? '#48bb78' : '#e53e3e' }}>
               {isVotesLocked ? <><Unlock size={16} /> Ouvrir</> : <><Lock size={16} /> Clôturer</>}
             </button>
           </div>
 
-          <div style={styles.adminCard}>
+          {/* Countries config */}
+          <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${t.border}`, borderRadius: '12px', padding: '16px', margin: '0 10px', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
               <Globe size={18} color="#4fd1c5" />
-              <h3 style={styles.sectionTitle}>Configuration des Pays Finalistes</h3>
+              <h3 style={{ fontFamily: t.fontDisplay, margin: 0, fontSize: '1.1rem' }}>Configuration des Pays Finalistes</h3>
             </div>
-            <p style={styles.subtitle}>Coche les pays qualifiés pour la finale, puis synchronise.</p>
-            
-            <div style={styles.gridCheckbox}>
+            <p style={{ margin: '0 0 16px 0', fontSize: '0.8rem', color: t.textMuted }}>Coche les pays qualifiés pour la finale, puis synchronise.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '8px', maxHeight: '200px', overflowY: 'auto', padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px' }}>
               {MASTER_COUNTRIES.map(c => {
                 const isChecked = activeFinalistIds.includes(c.id);
                 return (
-                  <button
-                    type="button"
-                    key={c.id}
-                    onClick={() => handleToggleFinalist(c.id)}
-                    style={isChecked ? styles.checkedBtn : styles.uncheckedBtn}
-                  >
+                  <button key={c.id} type="button" onClick={() => handleToggleFinalist(c.id)}
+                    style={isChecked ? { background: t.accent, color: '#fff', border: `1px solid ${t.accent}`, padding: '8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontFamily: t.fontBody, fontWeight: 700, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', boxShadow: `0 0 8px ${t.accentGlow}` } : { background: t.bgInput, color: t.textMuted, border: `1px solid ${t.border}`, padding: '8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontFamily: t.fontBody, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {c.flag} {c.name}
                   </button>
                 );
               })}
             </div>
-            
             <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-              <p style={{ fontSize: '0.85rem', color: '#4fd1c5', margin: 0, fontWeight: 500 }}>
-                Sélectionnés : {activeFinalistIds.length} pays
-              </p>
-              <button onClick={handleSyncCountriesToFirebase} disabled={syncingCountries} style={styles.syncBtn}>
-                <RefreshCw size={14} />
-                {syncingCountries ? 'Mise à jour...' : 'Mettre à jour'}
+              <p style={{ fontSize: '0.85rem', color: '#4fd1c5', margin: 0, fontWeight: 500 }}>Sélectionnés : {activeFinalistIds.length} pays</p>
+              <button onClick={handleSyncCountriesToFirebase} disabled={syncingCountries} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#4fd1c5', color: '#1a1635', border: 'none', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600, fontFamily: t.fontBody, cursor: 'pointer' }}>
+                <RefreshCw size={14} />{syncingCountries ? 'Mise à jour...' : 'Mettre à jour'}
               </button>
             </div>
           </div>
 
           <div style={{ margin: '20px 0' }} />
 
-          <div style={styles.adminCard}>
-            <h3 style={styles.sectionTitle}>Entrée des points Eurovision</h3>
-            <p style={styles.subtitle}>Saisis les points Jury et Télévote issus des résultats officiels.</p>
+          {/* Scores */}
+          <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${t.border}`, borderRadius: '12px', padding: '16px', margin: '0 10px', boxSizing: 'border-box' }}>
+            <h3 style={{ fontFamily: t.fontDisplay, margin: '0 0 4px', fontSize: '1.1rem' }}>Entrée des points Eurovision</h3>
+            <p style={{ margin: '0 0 16px', fontSize: '0.8rem', color: t.textMuted }}>Saisis les points Jury et Télévote issus des résultats officiels.</p>
 
-            <div style={styles.tableWrapper}>
-              <div style={styles.tableHeader}>
-                <div style={{ ...styles.cell, flex: 2 }}>Pays</div>
-                <div style={styles.cell}>Jury</div>
-                <div style={styles.cell}>Public</div>
-                <div style={{ ...styles.cell, textAlign: 'right', fontWeight: 600 }}>Total</div>
+            <div style={{ display: 'flex', flexDirection: 'column', borderRadius: '8px', overflow: 'hidden', border: `1px solid ${t.border}`, marginBottom: '20px' }}>
+              <div style={{ display: 'flex', background: 'rgba(255,255,255,0.06)', padding: '10px', fontSize: '0.85rem', color: t.textMuted, fontWeight: 600 }}>
+                <div style={{ flex: 2, minWidth: 0, fontSize: '0.9rem' }}>Pays</div>
+                <div style={{ flex: 1, minWidth: 0, fontSize: '0.9rem' }}>Jury</div>
+                <div style={{ flex: 1, minWidth: 0, fontSize: '0.9rem' }}>Public</div>
+                <div style={{ flex: 1, minWidth: 0, fontSize: '0.9rem', textAlign: 'right', fontWeight: 600 }}>Total</div>
               </div>
-
-              <div style={styles.tableBody}>
+              <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '350px', overflowY: 'auto' }}>
                 {visibleCountryScores.length === 0 ? (
-                  <div style={{ padding: '20px', textAlign: 'center', color: '#a0aec0', fontSize: '0.9rem' }}>
-                    Aucun pays finaliste déployé pour le moment.
-                  </div>
+                  <div style={{ padding: '20px', textAlign: 'center', color: t.textMuted, fontSize: '0.9rem' }}>Aucun pays finaliste déployé.</div>
                 ) : (
-                  visibleCountryScores.map((country) => (
-                    <div key={country.id} style={styles.tableRow}>
-                      <div style={{ ...styles.cell, flex: 2, display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                        <span style={styles.flag}>{country.flag}</span>
-                        <span style={styles.countryName}>{country.name}</span>
+                  visibleCountryScores.map(country => (
+                    <div key={country.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 10px', borderBottom: `1px solid ${t.border}`, background: 'rgba(15,12,32,0.2)' }}>
+                      <div style={{ flex: 2, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>{country.flag}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#fff', fontWeight: 500, fontSize: '0.9rem' }}>{country.name}</span>
                       </div>
-                      <div style={styles.cell}>
-                        <input
-                          type="number"
-                          value={country.jury || ''}
-                          placeholder="0"
-                          onChange={(e) => handleScoreChange(country.id, 'jury', e.target.value)}
-                          style={styles.scoreInput}
-                        />
-                      </div>
-                      <div style={styles.cell}>
-                        <input
-                          type="number"
-                          value={country.public || ''}
-                          placeholder="0"
-                          onChange={(e) => handleScoreChange(country.id, 'public', e.target.value)}
-                          style={styles.scoreInput}
-                        />
-                      </div>
-                      <div style={{ ...styles.cell, textAlign: 'right', fontWeight: 700, color: country.total > 0 ? '#ff007f' : '#a0aec0' }}>
+                      {['jury', 'public'].map(field => (
+                        <div key={field} style={{ flex: 1, minWidth: 0 }}>
+                          <input type="number" value={country[field] || ''} placeholder="0"
+                            onChange={(e) => handleScoreChange(country.id, field, e.target.value)}
+                            style={{ width: '80%', maxWidth: '70px', background: 'rgba(255,255,255,0.05)', border: `1px solid ${t.border}`, borderRadius: '6px', color: '#fff', padding: '8px', fontSize: '0.9rem', fontFamily: t.fontBody, textAlign: 'center', outline: 'none', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                      ))}
+                      <div style={{ flex: 1, minWidth: 0, textAlign: 'right', fontWeight: 700, color: country.total > 0 ? t.accent : t.textMuted, fontSize: '0.9rem' }}>
                         {country.total} pts
                       </div>
                     </div>
@@ -735,30 +360,22 @@ const AdminPanel = ({ onBack }) => {
               </div>
             </div>
 
-            {/* SÉLECTEUR PERSONNALISÉ — MAX 12 POINTS */}
-            <div style={styles.bonusSelectorCard}>
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${t.border}`, padding: '14px', borderRadius: '8px', boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
                 <Award size={18} color="#ffd700" />
-                <h4 style={styles.bonusSelectorTitle}>Statistique : Maximum de "12 Points"</h4>
+                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 500, color: '#fff' }}>Maximum de "12 Points"</h4>
               </div>
-              <CustomSelect
-                value={mostTwelvePoints}
-                onChange={setMostTwelvePoints}
-                options={twelvePointsOptions}
-                placeholder="Choisir parmi les pays de la finale"
-                disabled={twelvePointsOptions.length === 0}
-              />
+              <CustomSelect t={t} value={mostTwelvePoints} onChange={setMostTwelvePoints} options={twelvePointsOptions} placeholder="Choisir parmi les pays de la finale" disabled={twelvePointsOptions.length === 0} />
             </div>
           </div>
 
-          <div style={styles.triggerZone}>
+          <div style={{ marginTop: '24px', padding: '0 10px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {statusMessage && (
-              <div style={styles.alertBox}>
-                <span style={styles.alertText}>{statusMessage}</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.02)', border: `1px solid ${t.border}`, padding: '10px 14px', borderRadius: '8px', width: '100%', boxSizing: 'border-box' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 500, color: '#fff', textAlign: 'center' }}>{statusMessage}</span>
               </div>
             )}
-            
-            <button onClick={handleCalculateScores} disabled={calculating} style={styles.calcBtn}>
+            <button onClick={handleCalculateScores} disabled={calculating} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px', background: t.accent, color: '#fff', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: 600, fontFamily: t.fontBody, cursor: 'pointer', boxShadow: `0 0 15px ${t.accentGlow}` }}>
               <Calculator size={18} style={{ marginRight: '8px' }} />
               {calculating ? 'Calcul des résultats...' : 'Publier les résultats'}
             </button>
@@ -766,80 +383,48 @@ const AdminPanel = ({ onBack }) => {
         </div>
       )}
 
-      {/* ─── VUE 2 : ADMIN CONSOLE BINGO ─── */}
       {activeAdminTab === 'bingo' && (
-        <div style={styles.adminCard}>
-          {/* STATS ROW BINGO */}
-          <div style={styles.statsRow}>
-            <div style={styles.statBox}>
-              <span style={styles.statValue}>{totalBingoValidated}</span>
-              <span style={styles.statLabel}>événements</span>
-            </div>
-            <div style={styles.statBox}>
-              <span style={styles.statValue}>{totalBingoOccurrences}</span>
-              <span style={styles.statLabel}>occurrences</span>
-            </div>
-            <button
-              onClick={() => setShowResetConfirm(true)}
-              disabled={resetting}
-              style={styles.resetBtn}
-            >
-              <RefreshCw size={13} />
-              {resetting ? 'Reset...' : 'Reset Bingo'}
+        <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${t.border}`, borderRadius: '12px', padding: '16px', margin: '0 10px', boxSizing: 'border-box' }}>
+          {/* Stats */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            {[['événements', totalBingoValidated], ['occurrences', totalBingoOccurrences]].map(([label, val]) => (
+              <div key={label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.03)', border: `1px solid ${t.border}`, borderRadius: '8px', padding: '8px 14px', minWidth: '70px' }}>
+                <span style={{ fontSize: '1.3rem', fontWeight: 700, color: t.accent, fontFamily: t.fontDisplay }}>{val}</span>
+                <span style={{ fontSize: '0.7rem', color: t.textFaint, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
+              </div>
+            ))}
+            <button onClick={() => setShowResetConfirm(true)} disabled={resetting} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(229,62,62,0.1)', border: '1px solid rgba(229,62,62,0.3)', color: '#fc8181', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontFamily: t.fontBody, fontSize: '0.8rem', fontWeight: 600 }}>
+              <RefreshCw size={13} />{resetting ? 'Reset...' : 'Reset Bingo'}
             </button>
           </div>
 
-          {/* SÉLECTEUR CATÉGORIES BINGO */}
-          <div style={styles.catTabs}>
+          {/* Category tabs */}
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
             {CATEGORIES.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                style={{
-                  ...styles.catTab,
-                  background: activeCategory === cat.id ? cat.color : 'rgba(255,255,255,0.04)',
-                  color: activeCategory === cat.id ? '#0f0c20' : cat.color,
-                  border: `1px solid ${activeCategory === cat.id ? cat.color : 'rgba(255,255,255,0.08)'}`,
-                  fontWeight: activeCategory === cat.id ? 700 : 500
-                }}
-              >
+              <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
+                style={{ padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontFamily: t.fontBody, fontSize: '0.75rem', transition: 'all 0.2s', background: activeCategory === cat.id ? cat.color : 'rgba(255,255,255,0.04)', color: activeCategory === cat.id ? '#0f0c20' : cat.color, border: `1px solid ${activeCategory === cat.id ? cat.color : 'rgba(255,255,255,0.08)'}`, fontWeight: activeCategory === cat.id ? 700 : 500 }}>
                 {cat.label}
               </button>
             ))}
           </div>
 
-          {/* LISTE DES ÉVÉNEMENTS BINGO */}
-          <div style={styles.itemsList}>
+          {/* Items list */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {filteredBingoItems.map(item => {
               const count = validated[item.id] || 0;
               const isActive = count > 0;
               return (
-                <div
-                  key={item.id}
-                  style={{
-                    ...styles.itemRow,
-                    background: isActive ? 'rgba(255,0,127,0.08)' : 'rgba(255,255,255,0.02)',
-                    borderColor: isActive ? 'rgba(255,0,127,0.3)' : 'rgba(255,255,255,0.06)',
-                  }}
-                >
-                  <div style={styles.itemLeft}>
-                    <span style={styles.itemEmoji}>{item.emoji}</span>
-                    <span style={{ ...styles.itemLabel, color: isActive ? '#fff' : '#a0aec0' }}>
-                      {item.label}
-                    </span>
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '8px', border: '1px solid', transition: 'all 0.2s', background: isActive ? t.accentSoft : 'rgba(255,255,255,0.02)', borderColor: isActive ? t.accentBorder : 'rgba(255,255,255,0.06)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                    <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{item.emoji}</span>
+                    <span style={{ fontSize: '0.85rem', lineHeight: '1.2', color: isActive ? '#fff' : t.textMuted }}>{item.label}</span>
                   </div>
-                  <div style={styles.itemControls}>
-                    <button onClick={() => handleBingoDecrement(item.id)} style={styles.decrBtn} disabled={count === 0}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    <button onClick={() => handleBingoDecrement(item.id)} disabled={count === 0} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: `1px solid ${t.border}`, color: t.textMuted, cursor: 'pointer' }}>
                       <Minus size={14} />
                     </button>
-                    <span style={{
-                      ...styles.countDisplay,
-                      color: isActive ? '#ff007f' : '#4a5568',
-                      fontWeight: isActive ? 700 : 400
-                    }}>
-                      {count}
-                    </span>
-                    <button onClick={() => handleBingoIncrement(item.id)} style={styles.incrBtn}>
+                    <span style={{ fontSize: '1rem', minWidth: '24px', textAlign: 'center', fontFamily: t.fontDisplay, color: isActive ? t.accent : '#4a5568', fontWeight: isActive ? 700 : 400 }}>{count}</span>
+                    <button onClick={() => handleBingoIncrement(item.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '6px', background: t.accent, border: 'none', color: '#fff', cursor: 'pointer', boxShadow: `0 0 8px ${t.accentGlow}` }}>
                       <Plus size={14} />
                     </button>
                   </div>
@@ -851,63 +436,6 @@ const AdminPanel = ({ onBack }) => {
       )}
     </div>
   );
-};
-
-const styles = {
-  container: { padding: '10px 0', paddingBottom: '20px', color: '#fff', fontFamily: "'Outfit', sans-serif", boxSizing: 'border-box' },
-  header: { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px', padding: '0 10px' },
-  backBtn: { display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: "'Outfit', sans-serif" },
-  title: { fontFamily: "'Fredoka', sans-serif", margin: 0, fontSize: '1.3rem', color: '#ff007f' },
-  
-  subTabContainer: { display: 'flex', background: 'rgba(0, 0, 0, 0.25)', padding: '4px', borderRadius: '10px', marginBottom: '20px', border: '1px solid rgba(255, 255, 255, 0.04)', margin: '0 10px 20px 10px' },
-  subTab: { flex: 1, padding: '10px 0', background: 'transparent', border: 'none', color: '#a0aec0', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, fontFamily: "'Outfit', sans-serif", transition: '0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  subTabActive: { flex: 1, padding: '10px 0', background: '#ff007f', border: 'none', color: '#fff', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, fontFamily: "'Outfit', sans-serif", boxShadow: '0 2px 10px rgba(255,0,127,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  
-  lockCard: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderRadius: '12px', border: '1px solid', marginBottom: '20px', marginLeft: '10px', marginRight: '10px', boxSizing: 'border-box' },
-  lockCardTitle: { fontSize: '0.75rem', textTransform: 'uppercase', color: '#cbd5e0', letterSpacing: '0.04em' },
-  lockCardStatus: { fontSize: '0.9rem', fontWeight: 600 },
-  lockBtn: { display: 'flex', alignItems: 'center', gap: '6px', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', fontFamily: "'Outfit', sans-serif", fontWeight: 600, fontSize: '0.85rem' },
-  adminCard: { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', margin: '0 10px', boxSizing: 'border-box' },
-  sectionTitle: { fontFamily: "'Fredoka', sans-serif", margin: '0 0 4px 0', fontSize: '1.1rem' },
-  subtitle: { margin: '0 0 16px 0', fontSize: '0.8rem', color: '#a0aec0', lineHeight: '1.4' },
-  
-  gridCheckbox: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '8px', maxHeight: '200px', overflowY: 'auto', padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px' },
-  uncheckedBtn: { background: '#1a1635', color: '#a0aec0', border: '1px solid rgba(255,255,255,0.08)', padding: '8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontFamily: "'Outfit', sans-serif", textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  checkedBtn: { background: '#ff007f', color: '#fff', border: '1px solid #ff007f', padding: '8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem', fontFamily: "'Outfit', sans-serif", fontWeight: 700, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', boxShadow: '0 0 8px rgba(255,0,127,0.4)' },
-  syncBtn: { display: 'flex', alignItems: 'center', gap: '6px', background: '#4fd1c5', color: '#1a1635', border: 'none', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600, fontFamily: "'Outfit', sans-serif", cursor: 'pointer' },
-  
-  tableWrapper: { display: 'flex', flexDirection: 'column', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '20px' },
-  tableHeader: { display: 'flex', background: 'rgba(255,255,255,0.06)', padding: '10px', fontSize: '0.85rem', color: '#a0aec0', fontWeight: 600 },
-  tableBody: { display: 'flex', flexDirection: 'column', maxHeight: '350px', overflowY: 'auto' },
-  tableRow: { display: 'flex', alignItems: 'center', padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.04)', background: 'rgba(15, 12, 32, 0.2)' },
-  cell: { flex: 1, minWidth: 0, fontSize: '0.9rem' },
-  flag: { fontSize: '1.2rem', flexShrink: 0 },
-  countryName: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#fff', fontWeight: 500 },
-  scoreInput: { width: '80%', maxWidth: '70px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', padding: '8px', fontSize: '0.9rem', fontFamily: "'Outfit', sans-serif", textAlign: 'center', outline: 'none', boxSizing: 'border-box' },
-  bonusSelectorCard: { background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', padding: '14px', borderRadius: '8px', boxSizing: 'border-box' },
-  bonusSelectorTitle: { margin: 0, fontSize: '0.95rem', fontWeight: 500, color: '#fff' },
-  
-  triggerZone: { marginTop: '24px', padding: '0 10px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '10px' },
-  calcBtn: { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px', background: '#ff007f', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: 600, fontFamily: "'Outfit', sans-serif", cursor: 'pointer', boxShadow: '0 0 15px rgba(255,0,127,0.3)', transition: 'background 0.2s' },
-  alertBox: { display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', padding: '10px 14px', borderRadius: '8px', width: '100%', boxSizing: 'border-box' },
-  alertText: { fontSize: '0.85rem', fontWeight: 500, color: '#fff', textAlign: 'center' },
-
-  statsRow: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' },
-  statBox: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 14px', minWidth: '70px' },
-  statValue: { fontSize: '1.3rem', fontWeight: 700, color: '#ff007f', fontFamily: "'Fredoka', sans-serif" },
-  statLabel: { fontSize: '0.7rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '0.04em' },
-  resetBtn: { marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(229,62,62,0.1)', border: '1px solid rgba(229,62,62,0.3)', color: '#fc8181', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontFamily: "'Outfit', sans-serif", fontSize: '0.8rem', fontWeight: 600 },
-  catTabs: { display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' },
-  catTab: { padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontFamily: "'Outfit', sans-serif", fontSize: '0.75rem', transition: 'all 0.2s' },
-  itemsList: { display: 'flex', flexDirection: 'column', gap: '6px' },
-  itemRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '8px', border: '1px solid', transition: 'all 0.2s' },
-  itemLeft: { display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 },
-  itemEmoji: { fontSize: '1.1rem', flexShrink: 0 },
-  itemLabel: { fontSize: '0.85rem', lineHeight: '1.2', transition: 'color 0.2s' },
-  itemControls: { display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 },
-  decrBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#a0aec0', cursor: 'pointer' },
-  incrBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '6px', background: '#ff007f', border: 'none', color: '#fff', cursor: 'pointer', boxShadow: '0 0 8px rgba(255,0,127,0.3)' },
-  countDisplay: { fontSize: '1rem', minWidth: '24px', textAlign: 'center', fontFamily: "'Fredoka', sans-serif", transition: 'color 0.2s' }
 };
 
 export default AdminPanel;
